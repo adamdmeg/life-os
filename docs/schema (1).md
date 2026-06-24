@@ -197,7 +197,8 @@ create table sprints (
   start_date date not null,
   end_date date not null,                   -- always start_date + 13 days
   mid_sprint_date date not null,            -- always start_date + 6 days (auto-calculated)
-  goals text,                               -- free text: 2–3 sprint goals
+  goals text,                               -- free text: 2–3 sprint goals (the "sprint intention")
+  notes text,                               -- free text scratchpad for sprint planning (migration 005)
   gym_plan jsonb,                           -- see gym_plan schema below
   gym_plan_notes text,                      -- free text weekly workout description
   mid_sprint_notes text,                    -- day 7 check-in notes

@@ -20,3 +20,10 @@ body {
   color: var(--t1);
   min-height: 100vh;
 }
+
+/* Global UI scale. The app sizes everything in hardcoded px (inline styles), so a single
+   zoom on the app root enlarges text, cards, tiles, progress bars, and spacing uniformly
+   without touching each value. Adjust this one number to taste. */
+#root {
+  zoom: 1.1;
+}

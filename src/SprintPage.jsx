@@ -64,7 +64,9 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
   const [monthlyGoals, setMonthlyGoals] = useState([])
   const [months, setMonths] = useState([])
   const [goalsText, setGoalsText] = useState('')
+  const [notesText, setNotesText] = useState('')
   const [midNotesText, setMidNotesText] = useState('')
+  const [activeTab, setActiveTab] = useState('plan') // 'plan' | 'board'
   const [showAddTask, setShowAddTask] = useState(false)
   const [showPull, setShowPull] = useState(false)
   const [draggedTaskId, setDraggedTaskId] = useState(null)
@@ -95,7 +97,7 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
         if (sprintId) {
           const { data, error: e } = await supabase
             .from('sprints')
-            .select('id, sprint_number, sprint_number_in_month, name, start_date, end_date, mid_sprint_date, goals, gym_plan, gym_plan_notes, mid_sprint_notes, status, month_id, year_id')
+            .select('id, sprint_number, sprint_number_in_month, name, start_date, end_date, mid_sprint_date, goals, notes, gym_plan, gym_plan_notes, mid_sprint_notes, status, month_id, year_id')
             .eq('id', sprintId)
             .eq('user_id', user.id)
             .single()
@@ -114,7 +116,7 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
 
           const { data: allSprints, error: spErr } = await supabase
             .from('sprints')
-            .select('id, sprint_number, sprint_number_in_month, name, start_date, end_date, mid_sprint_date, goals, gym_plan, gym_plan_notes, mid_sprint_notes, status, month_id, year_id')
+            .select('id, sprint_number, sprint_number_in_month, name, start_date, end_date, mid_sprint_date, goals, notes, gym_plan, gym_plan_notes, mid_sprint_notes, status, month_id, year_id')
             .eq('year_id', yr.id)
             .eq('user_id', user.id)
             .order('sprint_number', { ascending: true })
@@ -191,12 +193,16 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
 
         setSprintRow(sprint)
         setGoalsText(sprint.goals || '')
+        setNotesText(sprint.notes || '')
         setMidNotesText(sprint.mid_sprint_notes || '')
         setTasks(tasksRes.data || [])
         setSprintGoals(sprintGoalsRes.data || [])
         setKeyDates(keyDatesRes.data || [])
         setMonthlyGoals(monthlyGoalsRes.data || [])
         setMonths(monthsRes.data || [])
+        // Open a started sprint straight to the board (you're executing); a not-yet-started
+        // sprint opens to Plan so you set it up first.
+        setActiveTab(new Date(sprint.start_date + 'T00:00:00') <= today ? 'board' : 'plan')
       } catch (err) {
         if (!cancelled) setError(err.message)
       } finally {
@@ -214,6 +220,12 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
     if (!sprintRow || goalsText === (sprintRow.goals || '')) return
     await supabase.from('sprints').update({ goals: goalsText }).eq('id', sprintRow.id)
     setSprintRow(prev => ({ ...prev, goals: goalsText }))
+  }
+
+  async function handleNotesBlur() {
+    if (!sprintRow || notesText === (sprintRow.notes || '')) return
+    await supabase.from('sprints').update({ notes: notesText }).eq('id', sprintRow.id)
+    setSprintRow(prev => ({ ...prev, notes: notesText }))
   }
 
   async function handleMidNotesBlur() {
@@ -713,8 +725,129 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
           )}
         </div>
 
+        {/* Plan / Board tabs — keeps the kanban one click away instead of below all the
+            planning blocks. Plan holds setup (goals, intention, notes, appointments, gym);
+            Board holds the kanban + mid-sprint check-in. */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '0.5px solid var(--b1)' }}>
+          {[
+            { key: 'plan', label: 'Plan', icon: 'ti-flag' },
+            { key: 'board', label: 'Board', icon: 'ti-layout-kanban' },
+          ].map(t => {
+            const active = activeTab === t.key
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  padding: '8px 14px',
+                  marginBottom: -1,
+                  color: active ? 'var(--teal-t)' : 'var(--t2)',
+                  borderBottom: active ? '2px solid var(--teal)' : '2px solid transparent',
+                }}
+              >
+                <i className={`ti ${t.icon}`} style={{ fontSize: 15 }} />
+                {t.label}
+                {t.key === 'board' && totalTasks > 0 && (
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: active ? 'var(--teal-t)' : 'var(--t3)',
+                    background: active ? 'var(--teal-bg)' : 'var(--bg2)',
+                    borderRadius: 20,
+                    padding: '1px 7px',
+                  }}>
+                    {doneTasks}/{totalTasks}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {activeTab === 'plan' && (
+        <>
+        {/* Monthly goals peek — read-only reminder of the month's goals so they stay in
+            view while planning the sprint. Progress is derived from each goal's subtasks. */}
+        {monthlyGoals.length > 0 && (
+          <div style={cardStyle}>
+            <div style={{ ...cardTitleStyle, justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <i className="ti ti-calendar-month" style={{ fontSize: 15 }} />
+                This month's goals
+              </span>
+              <button
+                onClick={() => onNavigateMonth?.(start.getMonth() + 1)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font)',
+                  fontSize: 12,
+                  color: 'var(--t2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: 0,
+                }}
+              >
+                View month
+                <i className="ti ti-arrow-right" style={{ fontSize: 12 }} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {monthlyGoals.map(g => {
+                const m = AREA_META[g.area]
+                const { done, total } = itemStats(g.subtasks)
+                const complete = total > 0 && done === total
+                return (
+                  <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                    {m && (
+                      <span style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: 20,
+                        background: m.bg,
+                        color: m.text,
+                        flexShrink: 0,
+                      }}>
+                        {g.area}
+                      </span>
+                    )}
+                    <span style={{
+                      flex: 1,
+                      color: complete ? 'var(--t3)' : 'var(--t1)',
+                      textDecoration: complete ? 'line-through' : 'none',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {g.monthly_goal_text}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--t3)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {complete && <i className="ti ti-circle-check-filled" style={{ fontSize: 13, color: 'var(--teal)' }} />}
+                      {total > 0 ? `${done}/${total}` : '—'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Intention + Notes, side by side to keep the planning zone compact. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         {/* Sprint intention (overall free-text) */}
-        <div style={cardStyle}>
+        <div style={{ ...cardStyle, marginBottom: 0 }}>
           <div style={cardTitleStyle}>
             <i className="ti ti-flag" style={{ fontSize: 15 }} />
             Sprint intention
@@ -747,6 +880,36 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
             <span>{doneTasks} of {totalTasks} tasks complete</span>
             <span>{daysRemaining} day{daysRemaining === 1 ? '' : 's'} remaining</span>
           </div>
+        </div>
+
+        {/* Notes — open scratchpad for sprint planning thoughts (persists to sprints.notes). */}
+        <div style={{ ...cardStyle, marginBottom: 0 }}>
+          <div style={cardTitleStyle}>
+            <i className="ti ti-notes" style={{ fontSize: 15 }} />
+            Notes
+          </div>
+          <textarea
+            value={notesText}
+            onChange={e => setNotesText(e.target.value)}
+            onBlur={handleNotesBlur}
+            placeholder="Anything else on your mind for this sprint — reminders, ideas, blockers…"
+            style={{
+              width: '100%',
+              border: '0.5px solid var(--b1)',
+              borderRadius: 'var(--r)',
+              padding: '10px 12px',
+              fontSize: 13,
+              fontFamily: 'var(--font)',
+              color: 'var(--t1)',
+              background: 'var(--bg)',
+              resize: 'vertical',
+              minHeight: 110,
+              outline: 'none',
+              lineHeight: 1.6,
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
         </div>
 
         {/* Sprint goals (structured; tasks are filed under these) */}
@@ -906,7 +1069,11 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
             />
           </div>
         </div>
+        </>
+        )}
 
+        {activeTab === 'board' && (
+        <>
         {/* Tasks */}
         <div style={cardStyle}>
           <div style={{ ...cardTitleStyle, justifyContent: 'space-between' }}>
@@ -1007,6 +1174,8 @@ export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
             }}
           />
         </div>
+        </>
+        )}
 
         {/* Help + retro buttons */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
