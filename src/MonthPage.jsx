@@ -6,6 +6,8 @@ import MonthlyGoalCard from './MonthlyGoalCard'
 import AddMonthlyGoalModal from './AddMonthlyGoalModal'
 import PullYearGoalsModal from './PullYearGoalsModal'
 import MonthCalendar from './MonthCalendar'
+import BackLink from './BackLink'
+import { itemStats, goalRollup } from './stats'
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTH_ABBR  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -97,7 +99,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
         const [goalsRes, keyDatesRes, sprintsRes, yearGoalsRes] = await Promise.all([
           supabase
             .from('monthly_goals')
-            .select('id, area, monthly_goal_text, sort_order, goal_id, subtasks(id, text, done, tag, sort_order, milestone_source_id)')
+            .select('id, area, monthly_goal_text, sort_order, goal_id, subtasks(id, text, done, tag, area, due_date, sort_order, milestone_source_id)')
             .eq('month_id', mo.id)
             .eq('user_id', user.id)
             .order('sort_order', { ascending: true }),
@@ -167,10 +169,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
   async function recalcGoalProgress(yearGoalId) {
     const { data } = await supabase.from('milestones').select('done').eq('goal_id', yearGoalId)
     if (!data) return
-    const total = data.length
-    const done = data.filter(m => m.done).length
-    const pct = total > 0 ? Math.round((done / total) * 100) : 0
-    await supabase.from('goals').update({ progress: pct }).eq('id', yearGoalId)
+    await supabase.from('goals').update({ progress: itemStats(data).pct }).eq('id', yearGoalId)
   }
 
   async function handleSubtaskToggle(goalId, subtaskId, newDone) {
@@ -200,7 +199,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
     const { data: sub, error } = await supabase
       .from('subtasks')
       .insert({ monthly_goal_id: goalId, user_id: user.id, text, done: false, tag, sort_order: sortOrder })
-      .select('id, text, done, tag, sort_order, milestone_source_id')
+      .select('id, text, done, tag, area, due_date, sort_order, milestone_source_id')
       .single()
     if (error) { console.error(error); return }
 
@@ -226,7 +225,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
         milestone_source_id: mile.id,
         sort_order: sortOrder,
       })
-      .select('id, text, done, tag, sort_order, milestone_source_id')
+      .select('id, text, done, tag, area, due_date, sort_order, milestone_source_id')
       .single()
     if (error) { console.error(error); return }
 
@@ -244,17 +243,17 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
     await supabase.from('monthly_goals').delete().eq('id', goalId)
   }
 
-  // Edit a monthly subtask's text and cascade it to sprint tasks pulled from it.
-  // (Only manually-added subtasks are editable here; ones pulled from a milestone are
-  // read-only in the card and edited at the year level.)
-  async function handleEditSubtask(goalId, subtaskId, newText) {
+  // Edit a monthly subtask (text / area / due_date) and cascade the same fields to sprint
+  // tasks pulled from it, so the month subtask stays the source of truth for its copies.
+  // `patch` may contain any of: text, area, due_date.
+  async function handleEditSubtask(goalId, subtaskId, patch) {
     setMonthlyGoals(prev => prev.map(g =>
       g.id === goalId
-        ? { ...g, subtasks: g.subtasks.map(s => s.id === subtaskId ? { ...s, text: newText } : s) }
+        ? { ...g, subtasks: g.subtasks.map(s => s.id === subtaskId ? { ...s, ...patch } : s) }
         : g
     ))
-    await supabase.from('subtasks').update({ text: newText }).eq('id', subtaskId)
-    await supabase.from('tasks').update({ text: newText }).eq('subtask_source_id', subtaskId)
+    await supabase.from('subtasks').update(patch).eq('id', subtaskId)
+    await supabase.from('tasks').update(patch).eq('subtask_source_id', subtaskId)
   }
 
   async function handleDeleteSubtask(goalId, subtaskId) {
@@ -292,7 +291,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
           tag: s.tag,
           sort_order: i,
         })))
-        .select('id, text, done, tag, sort_order, milestone_source_id')
+        .select('id, text, done, tag, area, due_date, sort_order, milestone_source_id')
       insertedSubs = data || []
     }
 
@@ -334,7 +333,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
             milestone_source_id: mile.id,
             sort_order: j,
           })))
-          .select('id, text, done, tag, sort_order, milestone_source_id')
+          .select('id, text, done, tag, area, due_date, sort_order, milestone_source_id')
         insertedSubs = data || []
       }
       newCards.push({ ...goal, subtasks: insertedSubs })
@@ -369,15 +368,8 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
 
   // ── Derived stats ──────────────────────────────────────────────────
 
-  const subtasksDone = monthlyGoals.reduce((n, g) => n + (g.subtasks || []).filter(s => s.done).length, 0)
-  // "Active" = a monthly goal whose subtask completion is strictly between 0% and 100%
-  // (0 / no subtasks = not started, 100 = complete). Covers both monthly and yearly-linked goals.
-  const activeGoals = monthlyGoals.filter(g => {
-    const subs = g.subtasks || []
-    if (subs.length === 0) return false
-    const pct = (subs.filter(s => s.done).length / subs.length) * 100
-    return pct > 0 && pct < 100
-  }).length
+  const subtasks = itemStats(monthlyGoals.flatMap(g => g.subtasks || []))
+  const goalsRollup = goalRollup(monthlyGoals.map(g => itemStats(g.subtasks).pct))
   const today = new Date()
 
   // ── Render ─────────────────────────────────────────────────────────
@@ -427,6 +419,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
       <Nav activePage="month" onNavigate={onNavigate} />
 
       <div style={{ padding: '1.5rem', maxWidth: 800, margin: '0 auto' }}>
+        <BackLink label="Year" onClick={() => onNavigate('year')} />
         {/* Eyebrow + title */}
         <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t2)', marginBottom: 4 }}>
           Life OS · {currentYear} · Month
@@ -438,8 +431,8 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
           {[
-            { label: 'Subtasks done', value: subtasksDone, sub: 'this month' },
-            { label: 'Goals', value: activeGoals, sub: `active of ${monthlyGoals.length}` },
+            { label: 'Subtasks done', value: `${subtasks.pct}%`, sub: `${subtasks.done} of ${subtasks.total}` },
+            { label: 'Goals', value: `${goalsRollup.completed}/${goalsRollup.total}`, sub: `${goalsRollup.inProgress} in progress` },
             { label: 'Sprints', value: sprints.length, sub: 'this month' },
             { label: 'Key dates', value: keyDates.length, sub: 'this month' },
           ].map(({ label, value, sub }) => (

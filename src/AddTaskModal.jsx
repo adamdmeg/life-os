@@ -1,19 +1,30 @@
 import { useState } from 'react'
 import { AREAS } from './constants/areaMeta'
 
-export default function AddTaskModal({ open, onClose, onSave }) {
+export default function AddTaskModal({ open, onClose, onSave, sprintGoals = [] }) {
   const [text, setText] = useState('')
   const [area, setArea] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [sprintGoalId, setSprintGoalId] = useState('')
 
   if (!open) return null
 
+  // A task filed under a sprint goal takes that goal's area; only a standalone task lets you
+  // pick an area.
+  const selectedGoal = sprintGoals.find(g => g.id === sprintGoalId)
+
   function handleSave() {
     if (!text.trim()) return
-    onSave({ text: text.trim(), area: area || null, due_date: dueDate || null })
+    onSave({
+      text: text.trim(),
+      area: selectedGoal ? (selectedGoal.area || null) : (area || null),
+      due_date: dueDate || null,
+      sprint_goal_id: sprintGoalId || null,
+    })
     setText('')
     setArea('')
     setDueDate('')
+    setSprintGoalId('')
   }
 
   const inputStyle = {
@@ -83,11 +94,33 @@ export default function AddTaskModal({ open, onClose, onSave }) {
           style={{ ...inputStyle, marginBottom: 12 }}
         />
 
-        <label style={labelStyle}>Life area</label>
-        <select value={area} onChange={e => setArea(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }}>
-          <option value="">No area</option>
-          {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
+        {sprintGoals.length > 0 && (
+          <>
+            <label style={labelStyle}>Sprint goal <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
+            <select value={sprintGoalId} onChange={e => setSprintGoalId(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }}>
+              <option value="">No goal</option>
+              {sprintGoals.map(g => <option key={g.id} value={g.id}>{g.sprint_goal_text}</option>)}
+            </select>
+          </>
+        )}
+
+        {selectedGoal ? (
+          // Area follows the chosen sprint goal — not editable here.
+          <>
+            <label style={labelStyle}>Life area</label>
+            <div style={{ ...inputStyle, marginBottom: 12, color: 'var(--t2)', background: 'var(--bg2)' }}>
+              {selectedGoal.area || 'No area'} <span style={{ color: 'var(--t3)' }}>· from sprint goal</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <label style={labelStyle}>Life area</label>
+            <select value={area} onChange={e => setArea(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }}>
+              <option value="">No area</option>
+              {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </>
+        )}
 
         <label style={labelStyle}>Due date <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
         <input

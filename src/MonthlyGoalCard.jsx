@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { AREA_META } from './constants/areaMeta'
 
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`
+}
+
 export default function MonthlyGoalCard({ goal, yearGoal, onGoalTextBlur, onSubtaskToggle, onAddSubtask, onAddSubtaskFromMilestone, onDelete, onDeleteSubtask, onEditSubtask }) {
   const m = AREA_META[goal.area] || AREA_META.Health
   const subtasks = goal.subtasks || []
@@ -22,6 +29,7 @@ export default function MonthlyGoalCard({ goal, yearGoal, onGoalTextBlur, onSubt
   const [hoveredSub, setHoveredSub] = useState(null)
   const [editingSub, setEditingSub] = useState(null)
   const [editText, setEditText] = useState('')
+  const [editDue, setEditDue] = useState('')
 
   function handleAddFromMilestone() {
     const mile = availableMiles.find(mi => mi.id === addMileId)
@@ -34,12 +42,25 @@ export default function MonthlyGoalCard({ goal, yearGoal, onGoalTextBlur, onSubt
   function startEditSub(sub) {
     setEditingSub(sub.id)
     setEditText(sub.text)
+    setEditDue(sub.due_date || '')
   }
-  function commitEditSub(sub) {
-    const v = editText.trim()
-    if (v && v !== sub.text) onEditSubtask(goal.id, sub.id, v)
+  function cancelEditSub() {
     setEditingSub(null)
     setEditText('')
+    setEditDue('')
+  }
+  // Save text (unless yearly-linked, where text is managed at the year level) and due date.
+  // A subtask's area always follows its goal's area, so it isn't editable here. Only changed
+  // fields are sent so the cascade to pulled sprint tasks stays minimal.
+  function commitEditSub(sub) {
+    const patch = {}
+    if (!sub.milestone_source_id) {
+      const v = editText.trim()
+      if (v && v !== sub.text) patch.text = v
+    }
+    if ((editDue || null) !== (sub.due_date || null)) patch.due_date = editDue || null
+    if (Object.keys(patch).length > 0) onEditSubtask(goal.id, sub.id, patch)
+    cancelEditSub()
   }
 
   useEffect(() => {
@@ -173,53 +194,68 @@ export default function MonthlyGoalCard({ goal, yearGoal, onGoalTextBlur, onSubt
 
       {/* Subtasks */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-        {subtasks.map(sub => (
-          <div
-            key={sub.id}
-            onMouseEnter={() => setHoveredSub(sub.id)}
-            onMouseLeave={() => setHoveredSub(h => (h === sub.id ? null : h))}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
+        {subtasks.map(sub => {
+          // Editing block — text (read-only for yearly-linked), area, and due date.
+          if (editingSub === sub.id) {
+            return (
+              <div key={sub.id} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 0' }}>
+                <input
+                  autoFocus
+                  value={editText}
+                  disabled={!!sub.milestone_source_id}
+                  onChange={e => setEditText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitEditSub(sub)
+                    if (e.key === 'Escape') cancelEditSub()
+                  }}
+                  placeholder="Subtask"
+                  title={sub.milestone_source_id ? 'Pulled from a yearly goal — edit the text at the year level' : undefined}
+                  style={{ ...inputStyle, opacity: sub.milestone_source_id ? 0.6 : 1 }}
+                />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input type="date" value={editDue} onChange={e => setEditDue(e.target.value)} style={inputStyle} />
+                  <button
+                    onClick={() => commitEditSub(sub)}
+                    style={{ fontSize: 12, padding: '5px 10px', background: 'var(--t1)', color: 'white', border: 'none', borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: 'var(--font)' }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEditSub}
+                    style={{ fontSize: 12, padding: '5px 10px', background: 'none', color: 'var(--t2)', border: '0.5px solid var(--b2)', borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: 'var(--font)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )
+          }
+
+          const overdue = sub.due_date && !sub.done && new Date(sub.due_date + 'T00:00:00') < new Date(new Date().toDateString())
+          return (
             <div
-              onClick={() => onSubtaskToggle(goal.id, sub.id, !sub.done)}
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: 3,
-                border: sub.done ? 'none' : '1.5px solid var(--b2)',
-                background: sub.done ? '#1D9E75' : 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
+              key={sub.id}
+              onMouseEnter={() => setHoveredSub(sub.id)}
+              onMouseLeave={() => setHoveredSub(h => (h === sub.id ? null : h))}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
-              {sub.done && <i className="ti ti-check" style={{ fontSize: 10, color: 'white' }} />}
-            </div>
-            {editingSub === sub.id ? (
-              <input
-                autoFocus
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') commitEditSub(sub)
-                  if (e.key === 'Escape') { setEditingSub(null); setEditText('') }
-                }}
-                onBlur={() => commitEditSub(sub)}
+              <div
+                onClick={() => onSubtaskToggle(goal.id, sub.id, !sub.done)}
                 style={{
-                  flex: 1,
-                  fontSize: 13,
-                  padding: '3px 6px',
-                  border: '0.5px solid var(--b2)',
-                  borderRadius: 'var(--r)',
-                  fontFamily: 'var(--font)',
-                  outline: 'none',
-                  color: 'var(--t1)',
-                  background: 'var(--bg)',
+                  width: 14,
+                  height: 14,
+                  borderRadius: 3,
+                  border: sub.done ? 'none' : '1.5px solid var(--b2)',
+                  background: sub.done ? '#1D9E75' : 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}
-              />
-            ) : (
+              >
+                {sub.done && <i className="ti ti-check" style={{ fontSize: 10, color: 'white' }} />}
+              </div>
               <span style={{
                 fontSize: 13,
                 flex: 1,
@@ -228,63 +264,67 @@ export default function MonthlyGoalCard({ goal, yearGoal, onGoalTextBlur, onSubt
               }}>
                 {sub.text}
               </span>
-            )}
-            <span style={{
-              fontSize: 10,
-              color: 'var(--t3)',
-              background: 'var(--bg2)',
-              border: '0.5px solid var(--b1)',
-              borderRadius: 20,
-              padding: '1px 6px',
-              flexShrink: 0,
-            }}>
-              {sub.tag === 'yearly_goal' ? 'yearly goal' : sub.tag}
-            </span>
-            {/* Subtasks pulled from a yearly milestone are read-only here — edit at the year level. */}
-            {onEditSubtask && !sub.milestone_source_id && editingSub !== sub.id && (
-              <button
-                onClick={() => startEditSub(sub)}
-                title="Edit subtask"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--t3)',
-                  fontSize: 13,
-                  padding: 0,
-                  lineHeight: 1,
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  visibility: hoveredSub === sub.id ? 'visible' : 'hidden',
-                }}
-              >
-                <i className="ti ti-pencil" />
-              </button>
-            )}
-            {onDeleteSubtask && editingSub !== sub.id && (
-              <button
-                onClick={() => onDeleteSubtask(goal.id, sub.id)}
-                title="Delete subtask"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--t3)',
-                  fontSize: 13,
-                  padding: 0,
-                  lineHeight: 1,
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  visibility: hoveredSub === sub.id ? 'visible' : 'hidden',
-                }}
-              >
-                <i className="ti ti-trash" />
-              </button>
-            )}
-          </div>
-        ))}
+              {sub.due_date && (
+                <span style={{ fontSize: 10, fontWeight: 600, color: overdue ? '#E24B4A' : 'var(--teal)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {formatDate(sub.due_date)}
+                </span>
+              )}
+              <span style={{
+                fontSize: 10,
+                color: 'var(--t3)',
+                background: 'var(--bg2)',
+                border: '0.5px solid var(--b1)',
+                borderRadius: 20,
+                padding: '1px 6px',
+                flexShrink: 0,
+              }}>
+                {sub.tag === 'yearly_goal' ? 'yearly goal' : sub.tag}
+              </span>
+              {onEditSubtask && (
+                <button
+                  onClick={() => startEditSub(sub)}
+                  title="Edit subtask"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--t3)',
+                    fontSize: 13,
+                    padding: 0,
+                    lineHeight: 1,
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    visibility: hoveredSub === sub.id ? 'visible' : 'hidden',
+                  }}
+                >
+                  <i className="ti ti-pencil" />
+                </button>
+              )}
+              {onDeleteSubtask && (
+                <button
+                  onClick={() => onDeleteSubtask(goal.id, sub.id)}
+                  title="Delete subtask"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--t3)',
+                    fontSize: 13,
+                    padding: 0,
+                    lineHeight: 1,
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    visibility: hoveredSub === sub.id ? 'visible' : 'hidden',
+                  }}
+                >
+                  <i className="ti ti-trash" />
+                </button>
+              )}
+            </div>
+          )
+        })}
 
         {showAdd && (
           isLinked ? (

@@ -18,6 +18,25 @@ complete working prototype in docs/prototype.html.
 - Signup trigger (handle_new_user) auto-creates a profiles row
 - Auth wired up: supabaseClient.js, AuthContext.jsx, Login.jsx, App.jsx
 - Login/signup with email+password works locally
+- Retro page (RetroPage.jsx) converted: reflects on one sprint (resolved with the
+  same logic as SprintPage), lazily upserts the single `retros` row per sprint, and
+  pushes carry-forward lines into the next sprint as deduped tasks. Routed in App.jsx
+  and cross-linked from the Sprint page so the user lands on the matching sprint.
+- Sprint goals (migration 002): structured goals (text + area) scoped to a sprint, where
+  kanban tasks are filed under a goal via `tasks.sprint_goal_id`. A goal's progress is
+  derived from its tasks' completion — no separate checklist, and standalone (no upward
+  propagation to monthly/yearly). The free-text `sprints.goals` box is relabeled "Sprint
+  intention". Rationale: reuse tasks as the leaf so the new layer adds no extra copy/recalc.
+- Month reflection detail: completed goals list their (all-done) subtasks nested, and each
+  sprint card shows a reflection peek (rating, energy, mid-sprint check-in preview). The
+  `retros.ai_summary` column (migration 003) is a reserved, currently-blank slot for a later
+  AI-generated one-sentence summary — the card renders it automatically once populated.
+- Reflection views for ended periods: once a period is over, the editable planning page
+  is auto-replaced by a read-only reflection. App.jsx routes ended months (month number
+  < current month) to MonthReflectionPage (stats, intention, completed goals, sprint
+  cards); SprintPage detects an ended sprint (today > end_date) and renders
+  SprintReflectionPage (read-only mid-sprint check-in + retro). Rationale: finished work
+  should look finished and surface outcomes, not invite further editing.
 
 ## What's next
 - Seed-on-signup logic: when a new user signs up, generate their year row,

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import { useAuth } from './AuthContext'
-import { AREA_META } from './constants/areaMeta'
+import { AREA_META, AREAS } from './constants/areaMeta'
 import Nav from './Nav'
 import GymPlan from './GymPlan'
 import AddTaskModal from './AddTaskModal'
 import PullSubtasksModal from './PullSubtasksModal'
+import SprintReflectionPage from './SprintReflectionPage'
+import BackLink from './BackLink'
+import { itemStats } from './stats'
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTH_ABBR  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -47,14 +50,16 @@ const COLUMNS = [
   { key: 'done', label: 'Done' },
 ]
 
-export default function SprintPage({ sprintId, onNavigate }) {
+export default function SprintPage({ sprintId, onNavigate, onNavigateMonth }) {
   const { user } = useAuth()
   const currentYear = new Date().getFullYear()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [ended, setEnded] = useState(false)
   const [sprintRow, setSprintRow] = useState(null)
   const [tasks, setTasks] = useState([])
+  const [sprintGoals, setSprintGoals] = useState([])
   const [keyDates, setKeyDates] = useState([])
   const [monthlyGoals, setMonthlyGoals] = useState([])
   const [months, setMonths] = useState([])
@@ -66,10 +71,15 @@ export default function SprintPage({ sprintId, onNavigate }) {
   const [dragOverCol, setDragOverCol] = useState(null)
   const [editingTaskId, setEditingTaskId] = useState(null)
   const [editTaskText, setEditTaskText] = useState('')
+  const [editTaskArea, setEditTaskArea] = useState('')
 
   // Appointment add-form state
   const [newDate, setNewDate] = useState('')
   const [newEvent, setNewEvent] = useState('')
+
+  // Sprint-goal add-form state
+  const [newGoalArea, setNewGoalArea] = useState('')
+  const [newGoalText, setNewGoalText] = useState('')
 
   useEffect(() => {
     if (!user?.id) return
@@ -78,6 +88,7 @@ export default function SprintPage({ sprintId, onNavigate }) {
     async function load() {
       setLoading(true)
       setError(null)
+      setEnded(false)
       try {
         // Resolve which sprint to show.
         let sprint
@@ -124,10 +135,28 @@ export default function SprintPage({ sprintId, onNavigate }) {
 
         if (!sprint) throw new Error('No sprint found')
 
-        const [tasksRes, keyDatesRes, monthlyGoalsRes, monthsRes] = await Promise.all([
+        // An ended sprint (strictly past its end date) shows the read-only reflection
+        // view instead of the editable kanban — skip the planning fetch entirely.
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        if (new Date(sprint.end_date + 'T23:59:59') < today) {
+          if (cancelled) return
+          setSprintRow(sprint)
+          setEnded(true)
+          setLoading(false)
+          return
+        }
+
+        const [tasksRes, sprintGoalsRes, keyDatesRes, monthlyGoalsRes, monthsRes] = await Promise.all([
           supabase
             .from('tasks')
-            .select('id, text, area, status, priority, due_date, notes, sort_order, goal_id, subtask_source_id')
+            .select('id, text, area, status, priority, due_date, notes, sort_order, goal_id, subtask_source_id, sprint_goal_id')
+            .eq('sprint_id', sprint.id)
+            .eq('user_id', user.id)
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('sprint_goals')
+            .select('id, area, sprint_goal_text, sort_order')
             .eq('sprint_id', sprint.id)
             .eq('user_id', user.id)
             .order('sort_order', { ascending: true }),
@@ -142,7 +171,7 @@ export default function SprintPage({ sprintId, onNavigate }) {
             .order('date', { ascending: true }),
           supabase
             .from('monthly_goals')
-            .select('id, area, monthly_goal_text, subtasks(id, text, done)')
+            .select('id, area, monthly_goal_text, subtasks(id, text, done, area, due_date)')
             .eq('month_id', sprint.month_id)
             .eq('user_id', user.id),
           supabase
@@ -153,6 +182,7 @@ export default function SprintPage({ sprintId, onNavigate }) {
         ])
 
         if (tasksRes.error) throw tasksRes.error
+        if (sprintGoalsRes.error) throw sprintGoalsRes.error
         if (keyDatesRes.error) throw keyDatesRes.error
         if (monthlyGoalsRes.error) throw monthlyGoalsRes.error
         if (monthsRes.error) throw monthsRes.error
@@ -163,6 +193,7 @@ export default function SprintPage({ sprintId, onNavigate }) {
         setGoalsText(sprint.goals || '')
         setMidNotesText(sprint.mid_sprint_notes || '')
         setTasks(tasksRes.data || [])
+        setSprintGoals(sprintGoalsRes.data || [])
         setKeyDates(keyDatesRes.data || [])
         setMonthlyGoals(monthlyGoalsRes.data || [])
         setMonths(monthsRes.data || [])
@@ -241,10 +272,7 @@ export default function SprintPage({ sprintId, onNavigate }) {
     if (!mile?.goal_id) return
     const { data: allMiles } = await supabase.from('milestones').select('done').eq('goal_id', mile.goal_id)
     if (!allMiles) return
-    const total = allMiles.length
-    const doneCount = allMiles.filter(m => m.done).length
-    const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
-    await supabase.from('goals').update({ progress: pct }).eq('id', mile.goal_id)
+    await supabase.from('goals').update({ progress: itemStats(allMiles).pct }).eq('id', mile.goal_id)
   }
 
   function handleAdvanceTask(taskId) {
@@ -264,21 +292,37 @@ export default function SprintPage({ sprintId, onNavigate }) {
     await supabase.from('tasks').delete().eq('id', taskId)
   }
 
-  // Edit a task's text. Only random sprint tasks (no subtask_source_id) are editable here;
-  // pulled tasks are read-only and edited at the level they came from.
-  async function handleEditTask(taskId, newText) {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, text: newText } : t))
-    await supabase.from('tasks').update({ text: newText }).eq('id', taskId)
+  // Edit a task's fields (text / area). Only non-pulled tasks (no subtask_source_id) are
+  // editable here; pulled tasks are edited at the level they came from. `patch` may contain
+  // text and/or area.
+  async function handleEditTask(taskId, patch) {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...patch } : t))
+    await supabase.from('tasks').update(patch).eq('id', taskId)
   }
 
-  function commitEditTask(task) {
-    const v = editTaskText.trim()
-    if (v && v !== task.text) handleEditTask(task.id, v)
+  function startEditTask(task) {
+    setEditingTaskId(task.id)
+    setEditTaskText(task.text)
+    setEditTaskArea(task.area || '')
+  }
+  function cancelEditTask() {
     setEditingTaskId(null)
     setEditTaskText('')
+    setEditTaskArea('')
+  }
+  function commitEditTask(task) {
+    // Area is only editable for standalone tasks (not pulled from a subtask, not filed under
+    // a sprint goal); those inherit their area from the goal/subtask they belong to.
+    const standalone = !task.subtask_source_id && !task.sprint_goal_id
+    const patch = {}
+    const v = editTaskText.trim()
+    if (v && v !== task.text) patch.text = v
+    if (standalone && (editTaskArea || null) !== (task.area || null)) patch.area = editTaskArea || null
+    if (Object.keys(patch).length > 0) handleEditTask(task.id, patch)
+    cancelEditTask()
   }
 
-  async function handleAddTask({ text, area, due_date }) {
+  async function handleAddTask({ text, area, due_date, sprint_goal_id }) {
     const { data: task, error } = await supabase
       .from('tasks')
       .insert({
@@ -288,13 +332,50 @@ export default function SprintPage({ sprintId, onNavigate }) {
         area,
         status: 'todo',
         due_date,
+        sprint_goal_id: sprint_goal_id || null,
         sort_order: tasks.length,
       })
-      .select('id, text, area, status, priority, due_date, notes, sort_order, goal_id, subtask_source_id')
+      .select('id, text, area, status, priority, due_date, notes, sort_order, goal_id, subtask_source_id, sprint_goal_id')
       .single()
     if (error) { console.error(error); return }
     setTasks(prev => [...prev, task])
     setShowAddTask(false)
+  }
+
+  // ── Sprint-goal handlers ───────────────────────────────────────────
+
+  async function handleAddSprintGoal() {
+    if (!newGoalArea || !newGoalText.trim()) return
+    const { data: goal, error } = await supabase
+      .from('sprint_goals')
+      .insert({
+        sprint_id: sprintRow.id,
+        user_id: user.id,
+        area: newGoalArea,
+        sprint_goal_text: newGoalText.trim(),
+        sort_order: sprintGoals.length,
+      })
+      .select('id, area, sprint_goal_text, sort_order')
+      .single()
+    if (error) { console.error(error); return }
+    setSprintGoals(prev => [...prev, goal])
+    setNewGoalArea('')
+    setNewGoalText('')
+  }
+
+  async function handleSprintGoalTextBlur(goalId, value) {
+    const goal = sprintGoals.find(g => g.id === goalId)
+    if (!goal || value === goal.sprint_goal_text) return
+    setSprintGoals(prev => prev.map(g => g.id === goalId ? { ...g, sprint_goal_text: value } : g))
+    await supabase.from('sprint_goals').update({ sprint_goal_text: value }).eq('id', goalId)
+  }
+
+  // Deleting a sprint goal leaves its tasks on the board (FK is ON DELETE SET NULL); clear
+  // the link in local task state so their chips disappear without a refetch.
+  async function handleDeleteSprintGoal(goalId) {
+    setSprintGoals(prev => prev.filter(g => g.id !== goalId))
+    setTasks(prev => prev.map(t => t.sprint_goal_id === goalId ? { ...t, sprint_goal_id: null } : t))
+    await supabase.from('sprint_goals').delete().eq('id', goalId)
   }
 
   async function handlePullSubtasks(chosen) {
@@ -306,11 +387,12 @@ export default function SprintPage({ sprintId, onNavigate }) {
         user_id: user.id,
         text: s.text,
         area: s.area,
+        due_date: s.due_date || null,
         status: 'todo',
         subtask_source_id: s.id,
         sort_order: tasks.length + i,
       })))
-      .select('id, text, area, status, priority, due_date, notes, sort_order, goal_id, subtask_source_id')
+      .select('id, text, area, status, priority, due_date, notes, sort_order, goal_id, subtask_source_id, sprint_goal_id')
     if (error) { console.error(error); return }
     setTasks(prev => [...prev, ...(data || [])])
     setShowPull(false)
@@ -365,6 +447,9 @@ export default function SprintPage({ sprintId, onNavigate }) {
     )
   }
 
+  // Ended sprints render the read-only reflection (mid-sprint + retro) instead of the board.
+  if (ended) return <SprintReflectionPage sprintRow={sprintRow} onNavigate={onNavigate} onNavigateMonth={onNavigateMonth} />
+
   // ── Derived values ─────────────────────────────────────────────────
 
   const today = new Date()
@@ -385,7 +470,20 @@ export default function SprintPage({ sprintId, onNavigate }) {
   const onTrack = completionPct >= expectedPct
   const started = today >= start
 
+  // Once the sprint hits its midpoint, nudge the user to write the mid-sprint check-in.
+  // The nudge clears as soon as the check-in has content (still editable while active).
+  const midDate = sprintRow.mid_sprint_date ? new Date(sprintRow.mid_sprint_date + 'T00:00:00') : null
+  const checkinDue = started && midDate && today >= midDate && !midNotesText.trim()
+
   const existingSourceIds = new Set(tasks.map(t => t.subtask_source_id).filter(Boolean))
+
+  // Sprint-goal lookups: a goal's progress is derived from its tasks' completion.
+  const sprintGoalById = new Map(sprintGoals.map(g => [g.id, g]))
+  function goalProgress(goalId) {
+    const gtasks = tasks.filter(t => t.sprint_goal_id === goalId)
+    const done = gtasks.filter(t => t.status === 'done').length
+    return { done, total: gtasks.length, pct: gtasks.length ? Math.round((done / gtasks.length) * 100) : 0 }
+  }
 
   // ── Render helpers ─────────────────────────────────────────────────
 
@@ -432,21 +530,18 @@ export default function SprintPage({ sprintId, onNavigate }) {
           opacity: draggedTaskId === task.id ? 0.4 : (isDone ? 0.55 : 1),
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-          {editingTaskId === task.id ? (
+        {editingTaskId === task.id ? (
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <input
               autoFocus
               value={editTaskText}
-              onClick={e => e.stopPropagation()}
               onChange={e => setEditTaskText(e.target.value)}
               onKeyDown={e => {
                 e.stopPropagation()
                 if (e.key === 'Enter') commitEditTask(task)
-                if (e.key === 'Escape') { setEditingTaskId(null); setEditTaskText('') }
+                if (e.key === 'Escape') cancelEditTask()
               }}
-              onBlur={() => commitEditTask(task)}
               style={{
-                flex: 1,
                 fontSize: 13,
                 padding: '3px 6px',
                 border: '0.5px solid var(--b2)',
@@ -457,20 +552,44 @@ export default function SprintPage({ sprintId, onNavigate }) {
                 background: 'var(--bg)',
               }}
             />
-          ) : (
+            {!task.subtask_source_id && !task.sprint_goal_id && (
+              <select
+                value={editTaskArea}
+                onChange={e => setEditTaskArea(e.target.value)}
+                style={{ fontSize: 12, padding: '4px 6px', border: '0.5px solid var(--b2)', borderRadius: 'var(--r)', fontFamily: 'var(--font)', outline: 'none', color: 'var(--t1)', background: 'var(--bg)' }}
+              >
+                <option value="">No area</option>
+                {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => commitEditTask(task)}
+                style={{ fontSize: 12, padding: '4px 10px', background: 'var(--t1)', color: 'white', border: 'none', borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: 'var(--font)' }}
+              >
+                Save
+              </button>
+              <button
+                onClick={cancelEditTask}
+                style={{ fontSize: 12, padding: '4px 10px', background: 'none', color: 'var(--t2)', border: '0.5px solid var(--b2)', borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: 'var(--font)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <span style={{ flex: 1, color: 'var(--t1)' }}>{task.text}</span>
-          )}
-          {!task.subtask_source_id && editingTaskId !== task.id && (
-            <button
-              onClick={e => { e.stopPropagation(); setEditingTaskId(task.id); setEditTaskText(task.text) }}
-              onMouseDown={e => e.stopPropagation()}
-              title="Edit task"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', fontSize: 13, padding: 0, lineHeight: 1, flexShrink: 0, display: 'flex', alignItems: 'center' }}
-            >
-              <i className="ti ti-pencil" />
-            </button>
-          )}
-          {editingTaskId !== task.id && (
+            {!task.subtask_source_id && (
+              <button
+                onClick={e => { e.stopPropagation(); startEditTask(task) }}
+                onMouseDown={e => e.stopPropagation()}
+                title="Edit task"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', fontSize: 13, padding: 0, lineHeight: 1, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+              >
+                <i className="ti ti-pencil" />
+              </button>
+            )}
             <button
               onClick={e => { e.stopPropagation(); handleDeleteTask(task.id) }}
               onMouseDown={e => e.stopPropagation()}
@@ -479,25 +598,46 @@ export default function SprintPage({ sprintId, onNavigate }) {
             >
               <i className="ti ti-trash" />
             </button>
-          )}
-        </div>
+          </div>
+        )}
         {task.due_date && !isDone && (
           <div style={{ fontSize: 11, fontWeight: 600, marginTop: 4, color: overdue ? '#E24B4A' : 'var(--teal)' }}>
             {overdue ? 'Overdue: ' : 'Due: '}{formatDate(task.due_date)}
           </div>
         )}
-        {m && (
-          <div style={{ marginTop: 6 }}>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 600,
-              padding: '1px 6px',
-              borderRadius: 20,
-              background: m.bg,
-              color: m.text,
-            }}>
-              {task.area}
-            </span>
+        {(m || task.sprint_goal_id) && (
+          <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {m && (
+              <span style={{
+                fontSize: 10,
+                fontWeight: 600,
+                padding: '1px 6px',
+                borderRadius: 20,
+                background: m.bg,
+                color: m.text,
+              }}>
+                {task.area}
+              </span>
+            )}
+            {task.sprint_goal_id && sprintGoalById.has(task.sprint_goal_id) && (
+              <span style={{
+                fontSize: 10,
+                fontWeight: 600,
+                padding: '1px 6px',
+                borderRadius: 20,
+                background: 'var(--bg2)',
+                color: 'var(--t2)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                maxWidth: '100%',
+              }}>
+                <i className="ti ti-flag" style={{ fontSize: 10 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {sprintGoalById.get(task.sprint_goal_id).sprint_goal_text}
+                </span>
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -522,6 +662,7 @@ export default function SprintPage({ sprintId, onNavigate }) {
       <Nav activePage="sprint" onNavigate={onNavigate} />
 
       <div style={{ padding: '1.5rem', maxWidth: 800, margin: '0 auto' }}>
+        <BackLink label={monthName} onClick={() => onNavigateMonth?.(start.getMonth() + 1)} />
         {/* Eyebrow + title */}
         <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t2)', marginBottom: 4 }}>
           Life OS · {year} · {monthName} · Sprint
@@ -555,13 +696,28 @@ export default function SprintPage({ sprintId, onNavigate }) {
               {onTrack ? 'On track' : 'Behind'}
             </span>
           )}
+          {checkinDue && (
+            <span style={{
+              fontSize: 12,
+              borderRadius: 20,
+              padding: '4px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'var(--amber-bg)',
+              color: 'var(--amber-t)',
+            }}>
+              <i className="ti ti-alert-triangle" style={{ fontSize: 13 }} />
+              Mid-sprint check-in due
+            </span>
+          )}
         </div>
 
-        {/* Sprint goals */}
+        {/* Sprint intention (overall free-text) */}
         <div style={cardStyle}>
           <div style={cardTitleStyle}>
             <i className="ti ti-flag" style={{ fontSize: 15 }} />
-            Sprint goals
+            Sprint intention
           </div>
           <textarea
             value={goalsText}
@@ -590,6 +746,86 @@ export default function SprintPage({ sprintId, onNavigate }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--t3)', marginTop: 6 }}>
             <span>{doneTasks} of {totalTasks} tasks complete</span>
             <span>{daysRemaining} day{daysRemaining === 1 ? '' : 's'} remaining</span>
+          </div>
+        </div>
+
+        {/* Sprint goals (structured; tasks are filed under these) */}
+        <div style={cardStyle}>
+          <div style={cardTitleStyle}>
+            <i className="ti ti-target" style={{ fontSize: 15 }} />
+            Sprint goals
+          </div>
+
+          {sprintGoals.length === 0 && (
+            <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 10 }}>
+              No sprint goals yet — add one below, then file tasks under it.
+            </p>
+          )}
+
+          {sprintGoals.map(goal => {
+            const gm = AREA_META[goal.area] || AREA_META.Health
+            const { done, total, pct } = goalProgress(goal.id)
+            return (
+              <div key={goal.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '0.5px solid var(--b1)' }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: gm.color, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <input
+                    defaultValue={goal.sprint_goal_text}
+                    onBlur={e => handleSprintGoalTextBlur(goal.id, e.target.value.trim())}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      fontSize: 13,
+                      fontFamily: 'var(--font)',
+                      color: 'var(--t1)',
+                      padding: 0,
+                      marginBottom: 6,
+                    }}
+                  />
+                  <div style={{ height: 5, background: 'var(--bg2)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: gm.color, borderRadius: 3, transition: 'width 0.2s' }} />
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--t3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {done}/{total}{total > 0 ? ` (${pct}%)` : ''} done
+                </span>
+                <button
+                  onClick={() => { if (window.confirm('Delete this sprint goal? Its tasks stay on the board, ungrouped.')) handleDeleteSprintGoal(goal.id) }}
+                  title="Delete sprint goal"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', fontSize: 13, padding: 0, lineHeight: 1, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                >
+                  <i className="ti ti-trash" />
+                </button>
+              </div>
+            )
+          })}
+
+          {/* Inline add row */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+            <select
+              value={newGoalArea}
+              onChange={e => setNewGoalArea(e.target.value)}
+              style={{ ...inputStyle, maxWidth: 130 }}
+            >
+              <option value="">Area…</option>
+              {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <input
+              type="text"
+              value={newGoalText}
+              onChange={e => setNewGoalText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddSprintGoal()}
+              placeholder="Sprint goal"
+              style={{ ...inputStyle, flex: 1, minWidth: 100 }}
+            />
+            <button
+              onClick={handleAddSprintGoal}
+              style={{ ...inputStyle, cursor: 'pointer', border: '0.5px solid var(--b2)', color: 'var(--t2)', background: 'none', whiteSpace: 'nowrap' }}
+            >
+              Add goal
+            </button>
           </div>
         </div>
 
@@ -772,33 +1008,54 @@ export default function SprintPage({ sprintId, onNavigate }) {
           />
         </div>
 
-        {/* Help button */}
-        <button
-          onClick={() => window.open(`https://claude.ai/new?q=${encodeURIComponent(`Help me plan my next 2-week sprint from ${formatDate(sprintRow.start_date)} to ${formatDate(sprintRow.end_date)}. Walk me through setting goals, tasks by life area, appointments, and gym targets.`)}`, '_blank')}
-          style={{
-            fontSize: 13,
-            color: 'var(--t2)',
-            background: 'none',
-            border: '0.5px solid var(--b1)',
-            borderRadius: 'var(--r)',
-            padding: '8px 16px',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontFamily: 'var(--font)',
-            marginTop: 4,
-          }}
-        >
-          <i className="ti ti-wand" style={{ fontSize: 14 }} />
-          Help me plan this sprint ↗
-        </button>
+        {/* Help + retro buttons */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+          <button
+            onClick={() => window.open(`https://claude.ai/new?q=${encodeURIComponent(`Help me plan my next 2-week sprint from ${formatDate(sprintRow.start_date)} to ${formatDate(sprintRow.end_date)}. Walk me through setting goals, tasks by life area, appointments, and gym targets.`)}`, '_blank')}
+            style={{
+              fontSize: 13,
+              color: 'var(--t2)',
+              background: 'none',
+              border: '0.5px solid var(--b1)',
+              borderRadius: 'var(--r)',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontFamily: 'var(--font)',
+            }}
+          >
+            <i className="ti ti-wand" style={{ fontSize: 14 }} />
+            Help me plan this sprint ↗
+          </button>
+          <button
+            onClick={() => onNavigate?.('retro')}
+            style={{
+              fontSize: 13,
+              color: 'var(--t2)',
+              background: 'none',
+              border: '0.5px solid var(--b1)',
+              borderRadius: 'var(--r)',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontFamily: 'var(--font)',
+            }}
+          >
+            <i className="ti ti-message-circle-2" style={{ fontSize: 14 }} />
+            Go to retro ↗
+          </button>
+        </div>
       </div>
 
       <AddTaskModal
         open={showAddTask}
         onClose={() => setShowAddTask(false)}
         onSave={handleAddTask}
+        sprintGoals={sprintGoals}
       />
       <PullSubtasksModal
         open={showPull}

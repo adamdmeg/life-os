@@ -6,14 +6,9 @@ import GoalCard from './GoalCard'
 import AddGoalModal from './AddGoalModal'
 import MonthGrid from './MonthGrid'
 import { AREA_META, AREAS } from './constants/areaMeta'
+import { calcGoalProgress, itemStats, goalRollup } from './stats'
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
-function calcGoalProgress(goal) {
-  const miles = goal.milestones || []
-  if (miles.length === 0) return goal.progress ?? 0
-  return Math.round(miles.filter(m => m.done).length / miles.length * 100)
-}
 
 export default function YearPage({ onNavigate, onMonthClick }) {
   const { user } = useAuth()
@@ -260,12 +255,11 @@ export default function YearPage({ onNavigate, onMonthClick }) {
 
   // ── Derived stats ──────────────────────────────────────────────────
 
-  const goalCount = goals.length
-  // "Active" = goal progress strictly between 0% and 100% (0 = not started, 100 = complete).
-  const activeGoals = goals.filter(g => { const p = calcGoalProgress(g); return p > 0 && p < 100 }).length
-  const milestoneDone = goals.reduce((n, g) => n + (g.milestones || []).filter(m => m.done).length, 0)
-  const milestoneTotal = goals.reduce((n, g) => n + (g.milestones || []).length, 0)
-  const sprintsDone = sprints.filter(s => s.status === 'complete').length
+  const goalsRollup = goalRollup(goals.map(calcGoalProgress))
+  const milestones = itemStats(goals.flatMap(g => g.milestones || []))
+  // A sprint is "done" once its end date has passed (the stored status field is unused).
+  const now = new Date()
+  const sprintsDone = sprints.filter(s => new Date(s.end_date + 'T23:59:59') < now).length
   const yearProgress = Math.round((currentMonth / 12) * 100)
   const monthAbbr = MONTH_ABBR[currentMonth - 1]
 
@@ -333,8 +327,8 @@ export default function YearPage({ onNavigate, onMonthClick }) {
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 24 }}>
           {[
-            { label: 'Goals', value: activeGoals, sub: `active of ${goalCount}` },
-            { label: 'Milestones done', value: milestoneDone, sub: `of ${milestoneTotal}` },
+            { label: 'Goals', value: `${goalsRollup.completed}/${goalsRollup.total}`, sub: `${goalsRollup.inProgress} in progress` },
+            { label: 'Milestones done', value: `${milestones.pct}%`, sub: `${milestones.done} of ${milestones.total}` },
             { label: 'Sprints done', value: sprintsDone, sub: 'of 26' },
             { label: 'Year progress', value: `${yearProgress}%`, sub: `${monthAbbr} of 12` },
           ].map(({ label, value, sub }) => (

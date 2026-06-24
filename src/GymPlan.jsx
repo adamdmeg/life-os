@@ -79,6 +79,14 @@ export default function GymPlan({ gymPlan, startDate, onToggle, notes, onNotesBl
   // Keep local notes in sync if the prop changes (e.g. after sprint reload).
   useEffect(() => { setNotesText(notes || '') }, [notes])
 
+  // Grow/shrink the notes box to fit its content (minHeight is the floor).
+  useEffect(() => {
+    const el = notesRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }, [notesText])
+
   const legendDot = (style) => (
     <i style={{ width: 10, height: 10, borderRadius: 2, display: 'inline-block', ...style }} />
   )
@@ -115,8 +123,9 @@ export default function GymPlan({ gymPlan, startDate, onToggle, notes, onNotesBl
           fontFamily: 'var(--font)',
           color: 'var(--t1)',
           background: 'var(--bg)',
-          resize: 'vertical',
+          resize: 'none',
           minHeight: 52,
+          overflow: 'hidden',
           outline: 'none',
           marginTop: 8,
           lineHeight: 1.5,

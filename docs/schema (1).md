@@ -137,6 +137,8 @@ create table subtasks (
   text text not null,
   done boolean default false,
   tag text default 'monthly',               -- monthly | yearly_goal
+  area text,                                -- (migration 004) reserved; subtasks currently always follow their goal's area (column unused by the app)
+  due_date date,                            -- (migration 004) optional; carried to the sprint task when pulled
   sort_order int default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -258,6 +260,7 @@ create table tasks (
   sprint_id uuid references sprints(id) on delete cascade,
   goal_id uuid references goals(id) on delete set null,         -- optional link to yearly goal
   subtask_source_id uuid references subtasks(id) on delete set null,  -- if pulled from monthly goal
+  sprint_goal_id uuid references sprint_goals(id) on delete set null, -- optional: which sprint goal this task is filed under
   user_id uuid references profiles(id) on delete cascade,
   text text not null,
   area text,                                -- Health | Career | Finance | Personal | Fitness | null
@@ -266,6 +269,29 @@ create table tasks (
   due_date date,                            -- optional; tasks with due dates sort to top of column
   notes text,
   carried_from uuid references tasks(id) on delete set null,    -- if carried forward from retro
+  sort_order int default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+```
+
+---
+
+### sprint_goals
+
+Structured goals scoped to one sprint (added in migration 002). A sprint goal is text + a
+life area; kanban tasks are filed under it via `tasks.sprint_goal_id`. The goal's progress
+is derived from its tasks' completion (% done) — there is no separate checklist. Sprint
+goals are standalone: they do not propagate completion up to monthly or yearly goals. The
+sprint's free-text `sprints.goals` field remains as the overall sprint intention.
+
+```sql
+create table sprint_goals (
+  id uuid primary key default gen_random_uuid(),
+  sprint_id uuid references sprints(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  area text not null,                       -- Health | Career | Finance | Personal | Fitness
+  sprint_goal_text text not null,
   sort_order int default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -296,6 +322,7 @@ create table retros (
   energy_body int check (energy_body >= 1 and energy_body <= 5),
   energy_motivation int check (energy_motivation >= 1 and energy_motivation <= 5),
   one_insight text,
+  ai_summary text,                          -- (migration 003) reserved for a later AI-generated one-sentence summary of the free-text boxes; currently blank
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   unique(sprint_id)

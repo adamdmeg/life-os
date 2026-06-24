@@ -12,7 +12,9 @@ export default function PullSubtasksModal({ open, onClose, monthlyGoals, existin
   ;(monthlyGoals || []).forEach(g => {
     ;(g.subtasks || []).forEach(s => {
       if (!existingSourceIds.has(s.id) && !s.done) {
-        available.push({ id: s.id, text: s.text, area: g.area })
+        // A pulled task keeps the goal's area (subtasks always follow their goal's area);
+        // its own due date carries over.
+        available.push({ id: s.id, text: s.text, area: g.area, due_date: s.due_date || null })
       }
     })
   })
