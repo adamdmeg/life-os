@@ -37,6 +37,16 @@ complete working prototype in docs/prototype.html.
   cards); SprintPage detects an ended sprint (today > end_date) and renders
   SprintReflectionPage (read-only mid-sprint check-in + retro). Rationale: finished work
   should look finished and surface outcomes, not invite further editing.
+- Gym consistency: a shared gymConsistency(sprints, asOf?) helper in stats.js reads each
+  sprint's gym_plan and derives avg workout days/week — only 'lift'/'run' days count, rest
+  and blank days are excluded, weeks = 2 per sprint. MonthReflectionPage (completed months)
+  calls it with no asOf to count every planned week; MonthPage (in-progress month) passes
+  `today` so it's a running average — only fully-ended weeks count (a still-in-progress week
+  is excluded entirely) so the average never dips mid-week as not-yet-done days sit empty.
+  Both render the same
+  dedicated section: the average plus a lift/run/total breakdown. Rationale: the gym plan
+  already captures per-day workout type, so consistency is derivable with no new schema, and
+  one helper keeps the planning and reflection views consistent.
 
 ## What's next
 - Seed-on-signup logic: when a new user signs up, generate their year row,

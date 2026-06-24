@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext'
 import { AREA_META } from './constants/areaMeta'
 import Nav from './Nav'
 import BackLink from './BackLink'
-import { itemStats, goalRollup } from './stats'
+import { itemStats, goalRollup, gymConsistency } from './stats'
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTH_ABBR  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -71,7 +71,7 @@ export default function MonthReflectionPage({ monthNumber, onNavigate, onSprintC
             .order('sort_order', { ascending: true }),
           supabase
             .from('sprints')
-            .select('id, sprint_number, sprint_number_in_month, start_date, end_date, mid_sprint_notes')
+            .select('id, sprint_number, sprint_number_in_month, start_date, end_date, mid_sprint_notes, gym_plan')
             .eq('month_id', mo.id)
             .eq('user_id', user.id)
             .order('sprint_number_in_month', { ascending: true }),
@@ -146,6 +146,8 @@ export default function MonthReflectionPage({ monthNumber, onNavigate, onSprintC
   })
 
   const goalsRollup = goalRollup(monthlyGoals.map(g => itemStats(g.subtasks).pct))
+
+  const gym = gymConsistency(sprints)
 
   const fmt = v => (v == null ? '—' : v)
   const stats = [
@@ -225,6 +227,41 @@ export default function MonthReflectionPage({ monthNumber, onNavigate, onSprintC
               <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 2 }}>{sub}</div>
             </div>
           ))}
+        </div>
+
+        {/* Gym consistency — avg workout days/week from lifts + runs across the
+            month's sprints (rest and blank days excluded). */}
+        {sectionHeader('ti-barbell', 'Gym consistency')}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          background: 'var(--bg)',
+          border: '0.5px solid var(--b1)',
+          borderRadius: 'var(--rl)',
+          padding: '16px 18px',
+          marginBottom: 24,
+        }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color: 'var(--teal-t)' }}>
+              {gym.avgPerWeek == null ? '—' : gym.avgPerWeek}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 4 }}>
+              Avg workouts / week
+            </div>
+          </div>
+          <div style={{ flex: 1, display: 'flex', gap: 24, fontSize: 12, color: 'var(--t2)' }}>
+            <span>
+              <strong style={{ color: 'var(--t1)', fontSize: 14 }}>{gym.workouts}</strong> workouts
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>over {gym.weeks} {gym.weeks === 1 ? 'week' : 'weeks'}</div>
+            </span>
+            <span>
+              <strong style={{ color: 'var(--teal-t)', fontSize: 14 }}>{gym.lifts}</strong> lifts
+            </span>
+            <span>
+              <strong style={{ color: 'var(--blue-t)', fontSize: 14 }}>{gym.runs}</strong> runs
+            </span>
+          </div>
         </div>
 
         {/* Monthly intention (omitted entirely when blank) */}

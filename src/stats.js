@@ -27,3 +27,41 @@ export function goalRollup(pcts) {
     total: pcts.length,
   }
 }
+
+// Workout consistency across a set of sprints. Each sprint's gym_plan holds two weeks
+// of seven days; only 'lift' and 'run' days count as workouts (rest and blank days are
+// ignored). Weeks counted = 2 per sprint, so avgPerWeek = workouts / weeks.
+//
+// Pass `asOf` (a Date) to get a *running* average for an in-progress month: only weeks
+// that have fully ended count toward both the workout tally and the week denominator. A
+// still-in-progress week is excluded entirely, so the average never dips mid-week as
+// planned-but-not-yet-done days sit empty. Omit `asOf` (completed months) to count every
+// planned week. avgPerWeek is null when no weeks count, so the UI can show "—".
+export function gymConsistency(sprints, asOf = null) {
+  let lifts = 0, runs = 0, weeks = 0
+  for (const sp of sprints || []) {
+    const plan = sp.gym_plan || {}
+    for (const [weekKey, offset] of [['week1', 0], ['week2', 7]]) {
+      if (asOf && sp.start_date) {
+        // The week spans days offset..offset+6; it has fully ended once asOf reaches the
+        // following day (offset+7 at midnight).
+        const weekEnd = new Date(sp.start_date + 'T00:00:00')
+        weekEnd.setDate(weekEnd.getDate() + offset + 7)
+        if (asOf < weekEnd) continue // week hasn't fully ended yet
+      }
+      weeks += 1
+      for (const v of Object.values(plan[weekKey] || {})) {
+        if (v === 'lift') lifts += 1
+        else if (v === 'run') runs += 1
+      }
+    }
+  }
+  const workouts = lifts + runs
+  return {
+    lifts,
+    runs,
+    workouts,
+    weeks,
+    avgPerWeek: weeks > 0 ? Math.round((workouts / weeks) * 10) / 10 : null,
+  }
+}

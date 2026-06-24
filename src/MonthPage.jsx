@@ -7,7 +7,7 @@ import AddMonthlyGoalModal from './AddMonthlyGoalModal'
 import PullYearGoalsModal from './PullYearGoalsModal'
 import MonthCalendar from './MonthCalendar'
 import BackLink from './BackLink'
-import { itemStats, goalRollup } from './stats'
+import { itemStats, goalRollup, gymConsistency } from './stats'
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTH_ABBR  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -111,7 +111,7 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
             .order('date', { ascending: true }),
           supabase
             .from('sprints')
-            .select('id, sprint_number_in_month, sprint_number, start_date, end_date, status, name')
+            .select('id, sprint_number_in_month, sprint_number, start_date, end_date, status, name, gym_plan')
             .eq('month_id', mo.id)
             .eq('user_id', user.id)
             .order('sprint_number_in_month', { ascending: true }),
@@ -371,6 +371,8 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
   const subtasks = itemStats(monthlyGoals.flatMap(g => g.subtasks || []))
   const goalsRollup = goalRollup(monthlyGoals.map(g => itemStats(g.subtasks).pct))
   const today = new Date()
+  // Running gym consistency: only fully-ended weeks count, so the average never dips mid-week.
+  const gym = gymConsistency(sprints, today)
 
   // ── Render ─────────────────────────────────────────────────────────
 
@@ -771,6 +773,43 @@ export default function MonthPage({ monthNumber, onNavigate, onSprintClick }) {
               </div>
             )
           })}
+        </div>
+
+        {/* Gym consistency — running avg workout days/week from lifts + runs across the
+            month's sprints (rest and blank days excluded; only fully-ended weeks count). */}
+        {sectionHeader('ti-barbell', 'Gym consistency')}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          background: 'var(--bg)',
+          border: '0.5px solid var(--b1)',
+          borderRadius: 'var(--rl)',
+          padding: '16px 18px',
+          marginBottom: 32,
+        }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color: 'var(--teal-t)' }}>
+              {gym.avgPerWeek == null ? '—' : gym.avgPerWeek}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 4 }}>
+              Avg workouts / week
+            </div>
+          </div>
+          <div style={{ flex: 1, display: 'flex', gap: 24, fontSize: 12, color: 'var(--t2)' }}>
+            <span>
+              <strong style={{ color: 'var(--t1)', fontSize: 14 }}>{gym.workouts}</strong> workouts
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                {gym.weeks === 0 ? 'no weeks yet' : `over ${gym.weeks} ${gym.weeks === 1 ? 'week' : 'weeks'} so far`}
+              </div>
+            </span>
+            <span>
+              <strong style={{ color: 'var(--teal-t)', fontSize: 14 }}>{gym.lifts}</strong> lifts
+            </span>
+            <span>
+              <strong style={{ color: 'var(--blue-t)', fontSize: 14 }}>{gym.runs}</strong> runs
+            </span>
+          </div>
         </div>
 
         {/* Help button */}
