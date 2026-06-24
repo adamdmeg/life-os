@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #ffffff; --bg2: #f7f6f3; --bg3: #f0efe9;
+  --t1: #1a1a18; --t2: #6b6b67; --t3: #9e9e9a;
+  --b1: rgba(0,0,0,0.08); --b2: rgba(0,0,0,0.15);
+  --r: 8px; --rl: 12px;
+  --teal: #1D9E75; --teal-bg: #E1F5EE; --teal-t: #085041;
+  --purple: #534AB7; --purple-bg: #EEEDFE; --purple-t: #26215C;
+  --amber: #BA7517; --amber-bg: #FAEEDA; --amber-t: #412402;
+  --pink: #D4537E; --pink-bg: #FBEAF0; --pink-t: #4B1528;
+  --green: #639922; --green-bg: #EAF3DE; --green-t: #173404;
+  --blue: #185FA5; --blue-bg: #E6F1FB; --blue-t: #042C53;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg3);
+  color: var(--t1);
+  min-height: 100vh;
+}

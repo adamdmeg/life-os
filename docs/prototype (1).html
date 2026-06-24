@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Life Sprint — Prototype</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+<style>
+:root {
+  --bg: #ffffff; --bg2: #f7f6f3; --bg3: #f0efe9;
+  --t1: #1a1a18; --t2: #6b6b67; --t3: #9e9e9a;
+  --b1: rgba(0,0,0,0.08); --b2: rgba(0,0,0,0.15);
+  --r: 8px; --rl: 12px;
+  --teal: #1D9E75; --teal-bg: #E1F5EE; --teal-t: #085041;
+  --purple: #534AB7; --purple-bg: #EEEDFE; --purple-t: #26215C;
+  --amber: #BA7517; --amber-bg: #FAEEDA; --amber-t: #412402;
+  --pink: #D4537E; --pink-bg: #FBEAF0; --pink-t: #4B1528;
+  --green: #639922; --green-bg: #EAF3DE; --green-t: #173404;
+  --blue: #185FA5; --blue-bg: #E6F1FB; --blue-t: #042C53;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg3);color:var(--t1);min-height:100vh}
+/* NAV */
+.nav{background:var(--bg);border-bottom:0.5px solid var(--b1);padding:0 2rem;display:flex;align-items:center;height:52px;position:sticky;top:0;z-index:100}
+.nav-brand{font-size:15px;font-weight:500;margin-right:2rem;display:flex;align-items:center;gap:8px}
+.nav-brand i{color:var(--teal);font-size:18px}
+.nav-tab{padding:0 16px;height:52px;display:flex;align-items:center;font-size:13px;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-0.5px;gap:6px;background:none;border-top:none;border-left:none;border-right:none;transition:color .15s}
+.nav-tab:hover{color:var(--t1)}
+.nav-tab.active{color:var(--t1);border-bottom-color:var(--t1);font-weight:500}
+/* LAYOUT */
+.page{display:none;max-width:800px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.page.active{display:block}
+/* TYPOGRAPHY */
+.eyebrow{font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--t3);text-transform:uppercase;margin-bottom:.4rem}
+.page-title{font-size:28px;font-weight:500;line-height:1.2}
+.sec{font-size:11px;font-weight:500;color:var(--t2);margin-bottom:1rem;display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:0.5px solid var(--b1);text-transform:uppercase;letter-spacing:.06em}
+.divider{height:0.5px;background:var(--b1);margin:1.75rem 0}
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:1.25rem 0 2rem}
+.stat{background:var(--bg2);border-radius:var(--r);padding:.875rem 1rem}
+.stat-l{font-size:11px;color:var(--t3);margin-bottom:6px}
+.stat-v{font-size:22px;font-weight:500}
+.stat-s{font-size:11px;color:var(--t3);margin-top:2px}
+/* CARDS */
+.card{background:var(--bg);border:0.5px solid var(--b1);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:.75rem}
+.card-title{font-size:14px;font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+/* INTENTION */
+.intent-block{border-left:2px solid var(--b2);padding:.75rem 1.25rem;margin-bottom:2rem}
+.intent-input{width:100%;border:none;outline:none;font-size:16px;color:var(--t1);font-family:Georgia,serif;line-height:1.7;font-style:italic;background:transparent;resize:none;min-height:28px}
+/* AREA CARDS */
+.acard{background:var(--bg);border:0.5px solid var(--b1);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:.75rem}
+.ahead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.adot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.aname{font-size:14px;font-weight:500;flex:1}
+.abadge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.apct{font-size:13px;font-weight:500}
+.goal-input{width:100%;border:none;outline:none;font-size:13px;color:var(--t1);background:transparent;font-family:var(--font);line-height:1.5;resize:none;min-height:20px;margin-bottom:10px}
+.yearly-ref{font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg2);border-radius:var(--r)}
+/* PROGRESS */
+.pbar{height:5px;background:var(--bg2);border-radius:3px;margin-bottom:6px;cursor:pointer}
+.pfill{height:100%;border-radius:3px;transition:width .2s}
+.plabel{font-size:11px;color:var(--t3);display:flex;justify-content:space-between;margin-bottom:10px}
+/* CHECKS */
+.miles{border-top:0.5px solid var(--b1);padding-top:10px}
+.mrow{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:var(--t2)}
+.mchk{width:14px;height:14px;border-radius:3px;border:0.5px solid var(--b2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .1s}
+.mchk.on{background:var(--teal);border-color:var(--teal-t)}
+.mchk.on::after{content:'';display:block;width:7px;height:7px;clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0%,43% 62%);background:#fff}
+.mtext{flex:1}
+.mtext.done{text-decoration:line-through;color:var(--t3)}
+.gtag{font-size:10px;padding:1px 6px;border-radius:20px;background:var(--bg2);color:var(--t3);white-space:nowrap}
+/* KANBAN */
+.kanban{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.kcol{background:var(--bg2);border-radius:var(--rl);padding:12px}
+.khead{font-size:12px;font-weight:500;color:var(--t2);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.kcount{background:var(--bg);border:0.5px solid var(--b1);border-radius:20px;padding:1px 7px;font-size:11px;color:var(--t3)}
+.kcard{background:var(--bg);border:0.5px solid var(--b1);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;font-size:13px;cursor:pointer;transition:border-color .1s}
+.kcard:hover{border-color:var(--b2)}
+.kcard.kdone{opacity:.55;cursor:default}
+.kcard-due{font-size:11px;color:var(--teal);margin-top:4px;font-weight:500}
+.kcard-due.overdue{color:#E24B4A}
+.kcard .atag{margin-top:6px}
+/* INPUTS */
+.add-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.add-row input,.add-row select{font-size:12px;padding:6px 8px;border:0.5px solid var(--b1);border-radius:var(--r);background:var(--bg);color:var(--t1);font-family:var(--font);outline:none}
+.add-row input{flex:1;min-width:80px}
+.add-row button{font-size:12px;padding:6px 12px;background:none;border:0.5px solid var(--b2);border-radius:var(--r);color:var(--t2);cursor:pointer;white-space:nowrap}
+.add-row button:hover{background:var(--bg2)}
+.ghost-btn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t3);cursor:pointer;padding:4px 0;background:none;border:none;margin-top:4px}
+.ghost-btn:hover{color:var(--t2)}
+.help-btn{font-size:13px;color:var(--t2);background:none;border:0.5px solid var(--b1);border-radius:var(--r);padding:8px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-top:1rem}
+.help-btn:hover{background:var(--bg2);border-color:var(--b2);color:var(--t1)}
+/* DATES */
+.drow{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:0.5px solid var(--b1);font-size:13px}
+.drow:last-child{border-bottom:none}
+.dpill{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:var(--bg2);color:var(--t2);min-width:54px;text-align:center;white-space:nowrap}
+.dpill.auto{background:var(--teal-bg);color:var(--teal-t)}
+.devent{flex:1}
+.dtag{font-size:11px;color:var(--t3)}
+/* GYM */
+.gym-week{margin-bottom:12px}
+.gym-week-label{font-size:11px;font-weight:500;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.gym-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.gday{text-align:center;font-size:11px}
+.gdlabel{color:var(--t3);margin-bottom:4px}
+.gdbox{height:32px;border-radius:4px;border:0.5px solid var(--b1);cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--t3)}
+.gdbox.lift{background:var(--teal);border-color:var(--teal-t);color:#fff}
+.gdbox.run{background:var(--blue-bg);border-color:var(--blue);color:var(--blue-t)}
+.gdbox.rest{background:var(--bg2);color:var(--t3)}
+.gym-legend{display:flex;gap:12px;margin-top:4px;font-size:11px;color:var(--t2)}
+.gym-legend span{display:flex;align-items:center;gap:4px}
+.gym-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.gym-legend .li{background:var(--teal)}
+.gym-legend .ri{background:var(--blue-bg);border:0.5px solid var(--blue)}
+.gym-legend .rsti{background:var(--bg2);border:0.5px solid var(--b2)}
+.gym-plan-input{width:100%;border:0.5px solid var(--b1);border-radius:var(--r);padding:8px 10px;font-size:13px;font-family:var(--font);color:var(--t1);background:var(--bg);resize:vertical;min-height:52px;outline:none;margin-top:8px;line-height:1.5}
+.gym-plan-input:focus{border-color:var(--b2)}
+/* SPRINT */
+.meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+.mpill{font-size:12px;color:var(--t2);background:var(--bg2);border-radius:20px;padding:4px 12px;display:flex;align-items:center;gap:6px}
+.mpill.green{background:var(--teal-bg);color:var(--teal-t)}
+.status-pill{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px}
+.s-active{background:var(--teal-bg);color:var(--teal-t)}
+.s-pending{background:var(--bg2);color:var(--t3)}
+.sprint-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.spcard{background:var(--bg);border:0.5px solid var(--b1);border-radius:var(--rl);padding:1rem 1.25rem}
+.spcard.active{border-color:var(--teal)}
+.spbar{height:4px;background:var(--bg2);border-radius:2px;margin-bottom:4px}
+.spfill{height:100%;border-radius:2px;background:var(--teal)}
+/* RETRO */
+.retro-label{font-size:13px;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.retro-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.rating-row{display:flex;gap:6px;flex-wrap:wrap}
+.rdot{width:30px;height:30px;border-radius:50%;border:0.5px solid var(--b2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--t2);transition:all .1s}
+.rdot.active{background:var(--teal);border-color:var(--teal-t);color:#fff}
+.mini-row{display:flex;gap:4px}
+.mdot{width:24px;height:24px;border-radius:50%;border:0.5px solid var(--b1);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--t3);transition:all .1s}
+.mdot.active{background:var(--teal);border-color:var(--teal-t);color:#fff}
+.retro-ta{width:100%;border:0.5px solid var(--b1);border-radius:var(--r);padding:10px 12px;font-size:13px;font-family:var(--font);color:var(--t1);background:var(--bg);resize:vertical;min-height:72px;outline:none;line-height:1.6}
+.retro-ta:focus{border-color:var(--b2)}
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg);border-radius:var(--rl);padding:1.5rem;width:440px;max-width:94vw;max-height:80vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--t3);font-size:18px;padding:0}
+.modal label{font-size:12px;color:var(--t2);display:block;margin-bottom:4px;margin-top:12px}
+.modal input,.modal textarea,.modal select{width:100%;font-size:13px;padding:8px 10px;border:0.5px solid var(--b1);border-radius:var(--r);background:var(--bg);color:var(--t1);font-family:var(--font);outline:none}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--b2)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem}
+.btn-primary{font-size:13px;padding:8px 18px;background:var(--t1);color:#fff;border:none;border-radius:var(--r);cursor:pointer}
+.btn-sec{font-size:13px;padding:8px 18px;background:none;border:0.5px solid var(--b2);border-radius:var(--r);cursor:pointer;color:var(--t2)}
+/* PULL SUBTASKS */
+.pull-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--b1);font-size:13px}
+.pull-item:last-child{border-bottom:none}
+.pull-check{width:15px;height:15px;cursor:pointer;accent-color:var(--teal)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><i class="ti ti-bolt"></i> Life Sprint</div>
+  <button class="nav-tab active" onclick="showPage('year',this)"><i class="ti ti-calendar"></i> Year</button>
+  <button class="nav-tab" onclick="showPage('month',this)"><i class="ti ti-calendar-month"></i> Month</button>
+  <button class="nav-tab" onclick="showPage('sprint',this)"><i class="ti ti-layout-kanban"></i> Sprint</button>
+  <button class="nav-tab" onclick="showPage('retro',this)"><i class="ti ti-message-circle-2"></i> Retro</button>
+</nav>
+
+<!-- ADD GOAL MODAL -->
+<div class="modal-bg" id="goal-modal">
+  <div class="modal">
+    <div class="modal-title">Add goal <button class="modal-close" onclick="closeModal('goal-modal')"><i class="ti ti-x"></i></button></div>
+    <label>Life area</label>
+    <select id="gm-area">
+      <option value="Health" data-color="#1D9E75" data-bg="#E1F5EE" data-text="#085041">Health</option>
+      <option value="Career" data-color="#534AB7" data-bg="#EEEDFE" data-text="#26215C">Career</option>
+      <option value="Finance" data-color="#BA7517" data-bg="#FAEEDA" data-text="#412402">Finance</option>
+      <option value="Personal" data-color="#D4537E" data-bg="#FBEAF0" data-text="#4B1528">Personal</option>
+      <option value="Fitness" data-color="#639922" data-bg="#EAF3DE" data-text="#173404">Fitness</option>
+    </select>
+    <label>Goal</label>
+    <input type="text" id="gm-text" placeholder="e.g. Run a 5K by September" />
+    <label>Milestones (one per line)</label>
+    <textarea id="gm-miles" rows="4" placeholder="Sign up for a race&#10;Run 3x/week for 4 weeks&#10;Complete a 5K"></textarea>
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeModal('goal-modal')">Cancel</button>
+      <button class="btn-primary" onclick="saveGoal()">Add goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MONTHLY GOAL MODAL -->
+<div class="modal-bg" id="mgoal-modal">
+  <div class="modal">
+    <div class="modal-title">Add monthly goal <button class="modal-close" onclick="closeModal('mgoal-modal')"><i class="ti ti-x"></i></button></div>
+    <label>Life area</label>
+    <select id="mgm-area">
+      <option value="Health" data-color="#1D9E75" data-bg="#E1F5EE" data-text="#085041">Health</option>
+      <option value="Career" data-color="#534AB7" data-bg="#EEEDFE" data-text="#26215C">Career</option>
+      <option value="Finance" data-color="#BA7517" data-bg="#FAEEDA" data-text="#412402">Finance</option>
+      <option value="Personal" data-color="#D4537E" data-bg="#FBEAF0" data-text="#4B1528">Personal</option>
+      <option value="Fitness" data-color="#639922" data-bg="#EAF3DE" data-text="#173404">Fitness</option>
+    </select>
+    <label>Monthly goal (what specifically this month?)</label>
+    <input type="text" id="mgm-text" placeholder="e.g. Gym 12x, increase bench by 5lbs" />
+    <label>Subtasks (one per line)</label>
+    <textarea id="mgm-subs" rows="4" placeholder="Gym Mon/Wed/Fri&#10;Increase bench by 5lbs&#10;Track workouts in app"></textarea>
+    <label>Tag</label>
+    <select id="mgm-tag">
+      <option value="monthly">monthly</option>
+      <option value="yearly goal">yearly goal</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeModal('mgoal-modal')">Cancel</button>
+      <button class="btn-primary" onclick="saveMonthlyGoal()">Add goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- PULL SUBTASKS MODAL -->
+<div class="modal-bg" id="pull-modal">
+  <div class="modal">
+    <div class="modal-title">Pull from monthly goals <button class="modal-close" onclick="closeModal('pull-modal')"><i class="ti ti-x"></i></button></div>
+    <p style="font-size:13px;color:var(--t2);margin-bottom:12px">Select subtasks from your monthly goals to add to this sprint:</p>
+    <div id="pull-list"></div>
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeModal('pull-modal')">Cancel</button>
+      <button class="btn-primary" onclick="confirmPull()">Add selected tasks</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TASK MODAL -->
+<div class="modal-bg" id="task-modal">
+  <div class="modal">
+    <div class="modal-title">Add task <button class="modal-close" onclick="closeModal('task-modal')"><i class="ti ti-x"></i></button></div>
+    <label>Task</label>
+    <input type="text" id="tm-text" placeholder="e.g. Update resume" />
+    <label>Life area</label>
+    <select id="tm-area">
+      <option value="">No area</option>
+      <option value="Health">Health</option>
+      <option value="Career">Career</option>
+      <option value="Finance">Finance</option>
+      <option value="Personal">Personal</option>
+      <option value="Fitness">Fitness</option>
+    </select>
+    <label>Due date (optional)</label>
+    <input type="date" id="tm-due" />
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn-primary" onclick="saveTask()">Add task</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========== YEAR PAGE =========== -->
+<div id="page-year" class="page active">
+  <div class="eyebrow">Life OS · Year</div>
+  <div class="page-title">2026</div>
+  <div class="intent-block" style="margin-top:1rem">
+    <textarea class="intent-input" id="yearly-theme" rows="2" placeholder="Click to write your yearly theme — e.g. The year I build the foundation…"></textarea>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-l">Goals</div><div class="stat-v" id="ys-goals">5</div><div class="stat-s">active</div></div>
+    <div class="stat"><div class="stat-l">Milestones done</div><div class="stat-v" id="ys-miles">3</div><div class="stat-s" id="ys-miles-s">of 15</div></div>
+    <div class="stat"><div class="stat-l">Sprints done</div><div class="stat-v">6</div><div class="stat-s">of 26</div></div>
+    <div class="stat"><div class="stat-l">Year progress</div><div class="stat-v">48%</div><div class="stat-s">Jun of 12</div></div>
+  </div>
+  <div class="divider"></div>
+  <div class="sec"><i class="ti ti-target" style="font-size:15px"></i> Goals by area</div>
+  <div id="year-areas"></div>
+  <button class="ghost-btn" style="margin-bottom:1.5rem" onclick="openModal('goal-modal')"><i class="ti ti-plus" style="font-size:13px"></i> Add goal</button>
+  <div class="divider"></div>
+  <div class="sec"><i class="ti ti-calendar-stats" style="font-size:15px"></i> Months at a glance</div>
+  <div id="month-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px"></div>
+  <br>
+  <button class="help-btn" onclick="openHelp('year')"><i class="ti ti-wand" style="font-size:14px"></i> Help me set my yearly goals ↗</button>
+</div>
+
+<!-- =========== MONTH PAGE =========== -->
+<div id="page-month" class="page">
+  <div class="eyebrow">Life OS · 2026 · Month</div>
+  <div class="page-title">July 2026</div>
+  <div class="stats">
+    <div class="stat"><div class="stat-l">Tasks done</div><div class="stat-v" id="ms-tasks">0</div><div class="stat-s">this month</div></div>
+    <div class="stat"><div class="stat-l">Goals</div><div class="stat-v" id="ms-goals">5</div><div class="stat-s">active</div></div>
+    <div class="stat"><div class="stat-l">Sprints</div><div class="stat-v">2</div><div class="stat-s">this month</div></div>
+    <div class="stat"><div class="stat-l">Key dates</div><div class="stat-v" id="ms-dates">4</div><div class="stat-s">this month</div></div>
+  </div>
+  <div class="intent-block">
+    <textarea class="intent-input" rows="2" placeholder="What do you want July to feel like? What would make this month a win?"></textarea>
+  </div>
+  <div class="divider"></div>
+  <div class="sec"><i class="ti ti-target" style="font-size:15px"></i> Goals this month</div>
+  <div id="month-areas"></div>
+  <button class="ghost-btn" style="margin-bottom:1.5rem" onclick="openModal('mgoal-modal')"><i class="ti ti-plus" style="font-size:13px"></i> Add monthly goal</button>
+  <div class="divider"></div>
+  <div class="sec"><i class="ti ti-calendar-event" style="font-size:15px"></i> Key dates & appointments</div>
+  <div class="card">
+    <div id="month-dates"></div>
+    <div class="add-row" style="margin-top:10px">
+      <input type="date" id="md-date" style="max-width:150px" onchange="calcSprintDates()" />
+      <input type="text" id="md-event" placeholder="Event name" onkeydown="if(event.key==='Enter')addMonthDate()" />
+      <input type="text" id="md-tag" placeholder="Tag" style="max-width:80px" />
+      <button onclick="addMonthDate()">Add</button>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="sec"><i class="ti ti-layout-kanban" style="font-size:15px"></i> Sprints this month</div>
+  <div class="sprint-grid">
+    <div class="spcard active">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+        <div style="font-size:12px;font-weight:500">Sprint 1</div>
+        <span class="status-pill s-active">Active</span>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Jul 1 – Jul 14</div>
+      <div class="spbar"><div class="spfill" style="width:55%"></div></div>
+      <div style="font-size:11px;color:var(--t3);display:flex;justify-content:space-between"><span>6 of 11 done</span><span>7 days left</span></div>
+    </div>
+    <div class="spcard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+        <div style="font-size:12px;font-weight:500">Sprint 2</div>
+        <span class="status-pill s-pending">Not started</span>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Jul 15 – Jul 28</div>
+      <div class="spbar"><div class="spfill" style="width:0%"></div></div>
+      <div style="font-size:11px;color:var(--t3);display:flex;justify-content:space-between"><span>0 tasks</span><span>Kickoff Jul 15</span></div>
+    </div>
+  </div>
+  <button class="help-btn" onclick="openHelp('month')"><i class="ti ti-wand" style="font-size:14px"></i> Help me plan this month ↗</button>
+</div>
+
+<!-- =========== SPRINT PAGE =========== -->
+<div id="page-sprint" class="page">
+  <div class="eyebrow">Life OS · 2026 · July · Sprint</div>
+  <div class="page-title">Sprint 1 · Jul 1–14</div>
+  <div class="meta-row" style="margin-top:1rem">
+    <span class="mpill"><i class="ti ti-calendar" style="font-size:13px"></i> Jul 1–14</span>
+    <span class="mpill"><i class="ti ti-clock" style="font-size:13px"></i> Day 7 of 14</span>
+    <span class="mpill green"><i class="ti ti-trending-up" style="font-size:13px"></i> On track</span>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="ti ti-flag" style="font-size:15px"></i> Sprint goals</div>
+    <textarea class="retro-ta" style="min-height:56px" placeholder="What does winning this sprint look like? Write 2–3 outcomes you're committing to."></textarea>
+    <div class="pbar" style="margin-top:12px"><div class="pfill" style="width:60%;background:var(--teal)"></div></div>
+    <div class="plabel"><span>6 of 10 tasks complete</span><span>7 days remaining</span></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-calendar-event" style="font-size:15px"></i> Appointments</div>
+      <div id="sprint-dates"></div>
+      <div class="add-row">
+        <input type="date" id="sd-date" style="max-width:150px" />
+        <input type="text" id="sd-event" placeholder="Event" onkeydown="if(event.key==='Enter')addSprintDate()" />
+        <button onclick="addSprintDate()">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-barbell" style="font-size:15px"></i> Gym plan</div>
+      <div class="gym-week">
+        <div class="gym-week-label">Week 1 (Jul 1–7)</div>
+        <div class="gym-grid" id="gym-w1"></div>
+      </div>
+      <div class="gym-week">
+        <div class="gym-week-label">Week 2 (Jul 8–14)</div>
+        <div class="gym-grid" id="gym-w2"></div>
+      </div>
+      <div class="gym-legend">
+        <span><i class="li"></i> Lift</span>
+        <span><i class="ri"></i> Run</span>
+        <span><i class="rsti"></i> Rest</span>
+      </div>
+      <textarea class="gym-plan-input" placeholder="Weekly plan — e.g. Mon/Wed/Fri: chest + arms · Tue/Thu: run 5K · Sat: legs"></textarea>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between">
+      <span><i class="ti ti-layout-kanban" style="font-size:15px"></i> Tasks</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sec" style="font-size:12px;padding:5px 10px" onclick="openModal('pull-modal');buildPullList()"><i class="ti ti-download" style="font-size:12px"></i> Pull from monthly goals</button>
+        <button class="btn-sec" style="font-size:12px;padding:5px 10px" onclick="openModal('task-modal')"><i class="ti ti-plus" style="font-size:12px"></i> Add task</button>
+      </div>
+    </div>
+    <div class="kanban">
+      <div class="kcol">
+        <div class="khead">To do <span class="kcount" id="kc-todo">4</span></div>
+        <div id="kcol-todo"></div>
+      </div>
+      <div class="kcol">
+        <div class="khead">In progress <span class="kcount" id="kc-doing">2</span></div>
+        <div id="kcol-doing"></div>
+      </div>
+      <div class="kcol">
+        <div class="khead">Done <span class="kcount" id="kc-done">4</span></div>
+        <div id="kcol-done"></div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--t3);margin-top:8px">Click a card to advance it · Tasks with due dates sort to top</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="ti ti-clipboard-check" style="font-size:15px"></i> Mid-sprint check-in (day 7)</div>
+    <textarea class="retro-ta" placeholder="How's it going halfway? What's on track, what needs to shift, anything to drop or add?"></textarea>
+  </div>
+  <button class="help-btn" onclick="openHelp('sprint')"><i class="ti ti-wand" style="font-size:14px"></i> Help me plan this sprint ↗</button>
+</div>
+
+<!-- =========== RETRO PAGE =========== -->
+<div id="page-retro" class="page">
+  <div class="eyebrow">Life OS · 2026 · July · Retro</div>
+  <div class="page-title">Sprint 1 Retro</div>
+  <div class="meta-row" style="margin-top:1rem">
+    <span class="mpill"><i class="ti ti-calendar" style="font-size:13px"></i> Jul 1–14</span>
+    <span class="mpill"><i class="ti ti-message-circle-2" style="font-size:13px"></i> End-of-sprint retro</span>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="ti ti-chart-bar" style="font-size:15px"></i> Overall rating</div>
+    <p style="font-size:13px;color:var(--t2);margin-bottom:10px">How would you rate this sprint? (1–10)</p>
+    <div class="rating-row" id="rating-row">
+      <div class="rdot" onclick="setRating(1,this)">1</div><div class="rdot" onclick="setRating(2,this)">2</div>
+      <div class="rdot" onclick="setRating(3,this)">3</div><div class="rdot" onclick="setRating(4,this)">4</div>
+      <div class="rdot active" onclick="setRating(5,this)">5</div><div class="rdot" onclick="setRating(6,this)">6</div>
+      <div class="rdot" onclick="setRating(7,this)">7</div><div class="rdot" onclick="setRating(8,this)">8</div>
+      <div class="rdot" onclick="setRating(9,this)">9</div><div class="rdot" onclick="setRating(10,this)">10</div>
+    </div>
+  </div>
+  <div class="card">
+    <div style="margin-bottom:1.25rem">
+      <div class="retro-label"><div class="retro-icon" style="background:var(--teal-bg)">✓</div> What went well</div>
+      <textarea class="retro-ta" placeholder="What are you proud of? What worked? What do you want to keep doing?"></textarea>
+    </div>
+    <div style="margin-bottom:1.25rem">
+      <div class="retro-label"><div class="retro-icon" style="background:var(--amber-bg)">△</div> What to improve</div>
+      <textarea class="retro-ta" placeholder="What got in the way? What would you do differently?"></textarea>
+    </div>
+    <div>
+      <div class="retro-label"><div class="retro-icon" style="background:var(--purple-bg)">→</div> Carry forward</div>
+      <textarea class="retro-ta" placeholder="What tasks or habits carry into the next sprint?"></textarea>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="ti ti-heart" style="font-size:15px"></i> Energy check</div>
+    <div class="grid3">
+      <div><div style="font-size:12px;color:var(--t2);margin-bottom:8px">Mind</div><div class="mini-row" id="mind-r"><div class="mdot" onclick="setMini('mind-r',1,this)">1</div><div class="mdot active" onclick="setMini('mind-r',2,this)">2</div><div class="mdot" onclick="setMini('mind-r',3,this)">3</div><div class="mdot" onclick="setMini('mind-r',4,this)">4</div><div class="mdot" onclick="setMini('mind-r',5,this)">5</div></div></div>
+      <div><div style="font-size:12px;color:var(--t2);margin-bottom:8px">Body</div><div class="mini-row" id="body-r"><div class="mdot" onclick="setMini('body-r',1,this)">1</div><div class="mdot" onclick="setMini('body-r',2,this)">2</div><div class="mdot active" onclick="setMini('body-r',3,this)">3</div><div class="mdot" onclick="setMini('body-r',4,this)">4</div><div class="mdot" onclick="setMini('body-r',5,this)">5</div></div></div>
+      <div><div style="font-size:12px;color:var(--t2);margin-bottom:8px">Motivation</div><div class="mini-row" id="mot-r"><div class="mdot" onclick="setMini('mot-r',1,this)">1</div><div class="mdot" onclick="setMini('mot-r',2,this)">2</div><div class="mdot" onclick="setMini('mot-r',3,this)">3</div><div class="mdot active" onclick="setMini('mot-r',4,this)">4</div><div class="mdot" onclick="setMini('mot-r',5,this)">5</div></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="ti ti-bulb" style="font-size:15px"></i> One insight</div>
+    <textarea class="retro-ta" style="min-height:52px" placeholder="What's one thing you learned about yourself this sprint?"></textarea>
+  </div>
+  <button class="help-btn" onclick="openHelp('retro')"><i class="ti ti-wand" style="font-size:14px"></i> Guide me through my retro ↗</button>
+</div>
+
+<script>
+/* ============================================================ DATA */
+const AREA_META = {
+  Health:  {color:'#1D9E75',bg:'#E1F5EE',text:'#085041'},
+  Career:  {color:'#534AB7',bg:'#EEEDFE',text:'#26215C'},
+  Finance: {color:'#BA7517',bg:'#FAEEDA',text:'#412402'},
+  Personal:{color:'#D4537E',bg:'#FBEAF0',text:'#4B1528'},
+  Fitness: {color:'#639922',bg:'#EAF3DE',text:'#173404'},
+};
+
+let yearGoals = [
+  {area:'Health', goal:'Sleep 7+ hours consistently', progress:42,
+   miles:[{t:'Schedule annual physical',done:true},{t:'Cut soda to 1x/week',done:false},{t:'Sleep before 11pm consistently',done:false}]},
+  {area:'Career', goal:'Get promoted or ship a side project', progress:30,
+   miles:[{t:'Update resume',done:false},{t:'Apply to 3 new roles',done:false},{t:'Complete one online course',done:false}]},
+  {area:'Finance', goal:'Build a 6-month emergency fund', progress:55,
+   miles:[{t:'Set up automatic savings',done:true},{t:'Create monthly budget',done:true},{t:'Review subscriptions',done:false}]},
+  {area:'Personal', goal:'Read 12 books', progress:20,
+   miles:[{t:'Read 1 book this month',done:false},{t:'Plan a trip',done:false},{t:'Call a friend weekly',done:false}]},
+  {area:'Fitness', goal:'Lift 3x/week, run a 5K', progress:68,
+   miles:[{t:'Gym 3x/week for 1 month',done:true},{t:'Increase bench press',done:false},{t:'Complete a 5K',done:false}]},
+];
+
+let monthGoals = [
+  {area:'Health', monthlyGoal:'Track sleep every night, no screens after 10pm',
+   subs:[{t:'Buy blackout curtains',done:true,tag:'yearly goal'},{t:'Track sleep for 30 days',done:false,tag:'yearly goal'},{t:'No caffeine after 2pm',done:false,tag:'monthly'}]},
+  {area:'Career', monthlyGoal:'Send 5 job applications, finish course module 3',
+   subs:[{t:'Update resume',done:true,tag:'yearly goal'},{t:'Apply to 3 roles',done:false,tag:'monthly'},{t:'Complete course module 3',done:false,tag:'monthly'}]},
+  {area:'Finance', monthlyGoal:'Save $500 this month, review subscriptions',
+   subs:[{t:'Set up automatic savings',done:true,tag:'yearly goal'},{t:'Review subscriptions',done:false,tag:'monthly'},{t:'Track all spending',done:false,tag:'monthly'}]},
+  {area:'Personal', monthlyGoal:'Finish current book, call a friend weekly',
+   subs:[{t:'Read 30 min every day',done:false,tag:'yearly goal'},{t:'Finish current book',done:false,tag:'monthly'},{t:'Call a friend weekly',done:false,tag:'monthly'}]},
+  {area:'Fitness', monthlyGoal:'Gym 12x this month, increase bench by 5lbs',
+   subs:[{t:'Gym 12x this month',done:false,tag:'yearly goal'},{t:'Increase bench by 5lbs',done:false,tag:'monthly'},{t:'Run 2x per week',done:false,tag:'monthly'}]},
+];
+
+let sprintTasks = [
+  {t:'Research job listings',area:'Career',status:'todo',due:null},
+  {t:'Meal prep Sunday',area:'Health',status:'todo',due:'2026-07-06'},
+  {t:'Review budget',area:'Finance',status:'todo',due:null},
+  {t:'Read 30 min/day',area:'Personal',status:'todo',due:null},
+  {t:'Update resume',area:'Career',status:'doing',due:'2026-07-10'},
+  {t:'Set up auto savings',area:'Finance',status:'doing',due:null},
+  {t:'Sprint kickoff written',area:'Personal',status:'done',due:null},
+  {t:'Gym 3x this week',area:'Fitness',status:'done',due:null},
+  {t:'Doctor appt booked',area:'Health',status:'done',due:null},
+  {t:'Weekly review done',area:'Personal',status:'done',due:null},
+];
+
+const SPRINT_START = new Date('2026-07-01');
+const SPRINT_END   = new Date('2026-07-14');
+
+const MONTHS_DATA = [
+  {name:'Jan',prog:100,note:'Done',past:true,now:false},
+  {name:'Feb',prog:100,note:'Done',past:true,now:false},
+  {name:'Mar',prog:100,note:'Done',past:true,now:false},
+  {name:'Apr',prog:100,note:'Done',past:true,now:false},
+  {name:'May',prog:100,note:'Done',past:true,now:false},
+  {name:'Jun',prog:85,note:'Sprint 2',past:true,now:false},
+  {name:'Jul',prog:0,note:'—',past:false,now:true},
+  {name:'Aug',prog:0,note:'—',past:false,now:false},
+  {name:'Sep',prog:0,note:'—',past:false,now:false},
+  {name:'Oct',prog:0,note:'—',past:false,now:false},
+  {name:'Nov',prog:0,note:'—',past:false,now:false},
+  {name:'Dec',prog:0,note:'—',past:false,now:false},
+];
+
+/* ============================================================ NAV */
+function showPage(name, btn) {
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ============================================================ MODALS */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
+
+/* ============================================================ YEAR */
+function buildYearAreas(){
+  const c=document.getElementById('year-areas'); c.innerHTML='';
+  yearGoals.forEach((g,gi)=>{
+    const m=AREA_META[g.area];
+    const done=g.miles.filter(x=>x.done).length, total=g.miles.length;
+    const pct=Math.round(g.progress);
+    const miHTML=g.miles.map((mi,mii)=>`
+      <div class="mrow">
+        <div class="mchk ${mi.done?'on':''}" onclick="toggleYearMile(${gi},${mii},this)"></div>
+        <span class="mtext ${mi.done?'done':''}">${mi.t}</span>
+      </div>`).join('');
+    const div=document.createElement('div'); div.className='acard';
+    div.innerHTML=`
+      <div class="ahead">
+        <div class="adot" style="background:${m.color}"></div>
+        <span class="aname">${g.area}</span>
+        <span class="apct" style="color:${m.color}">${pct}%</span>
+      </div>
+      <textarea class="goal-input" rows="1" oninput="autoResize(this)" placeholder="e.g. ${g.goal}">${g.goal}</textarea>
+      <div class="pbar" onclick="clickYBar(event,${gi},this)"><div class="pfill" id="ybar-${gi}" style="width:${pct}%;background:${m.color}"></div></div>
+      <div class="plabel"><span>0%</span><span id="ypct-${gi}">${pct}% complete</span><span>100%</span></div>
+      <div class="miles" id="ymiles-${gi}">${miHTML}
+        <div id="yadd-${gi}" style="display:none" class="add-row">
+          <input type="text" id="yin-${gi}" placeholder="Add milestone…" onkeydown="if(event.key==='Enter')addYearMile(${gi})"/>
+          <button onclick="addYearMile(${gi})">Add</button>
+        </div>
+      </div>
+      <button class="ghost-btn" onclick="toggleDiv('yadd-${gi}')"><i class="ti ti-plus" style="font-size:12px"></i> Add milestone</button>`;
+    c.appendChild(div);
+  });
+  recalcYearStats();
+}
+
+function saveGoal(){
+  const sel=document.getElementById('gm-area');
+  const area=sel.value, text=document.getElementById('gm-text').value.trim();
+  const milesRaw=document.getElementById('gm-miles').value.trim();
+  if(!text){alert('Please enter a goal');return;}
+  const miles=milesRaw?milesRaw.split('\n').filter(Boolean).map(t=>({t,done:false})):[];
+  yearGoals.push({area,goal:text,progress:0,miles});
+  document.getElementById('gm-text').value='';
+  document.getElementById('gm-miles').value='';
+  closeModal('goal-modal');
+  buildYearAreas();
+}
+
+function toggleYearMile(gi,mi,el){
+  yearGoals[gi].miles[mi].done=!yearGoals[gi].miles[mi].done;
+  el.classList.toggle('on'); el.nextElementSibling.classList.toggle('done');
+  recalcYearStats();
+}
+
+function clickYBar(e,gi,el){
+  const pct=Math.round(((e.clientX-el.getBoundingClientRect().left)/el.offsetWidth)*100);
+  yearGoals[gi].progress=pct;
+  document.getElementById('ybar-'+gi).style.width=pct+'%';
+  document.getElementById('ypct-'+gi).textContent=pct+'% complete';
+}
+
+function addYearMile(gi){
+  const inp=document.getElementById('yin-'+gi); const val=inp.value.trim(); if(!val)return;
+  yearGoals[gi].miles.push({t:val,done:false});
+  const mi=yearGoals[gi].miles.length-1;
+  const c=document.getElementById('ymiles-'+gi);
+  const row=document.createElement('div'); row.className='mrow';
+  row.innerHTML=`<div class="mchk" onclick="toggleYearMile(${gi},${mi},this)"></div><span class="mtext">${val}</span>`;
+  c.insertBefore(row,document.getElementById('yadd-'+gi));
+  inp.value=''; recalcYearStats();
+}
+
+function recalcYearStats(){
+  let done=0,total=0;
+  yearGoals.forEach(g=>g.miles.forEach(m=>{total++;if(m.done)done++;}));
+  document.getElementById('ys-goals').textContent=yearGoals.length;
+  document.getElementById('ys-miles').textContent=done;
+  document.getElementById('ys-miles-s').textContent='of '+total;
+}
+
+function buildMonthGrid(){
+  const g=document.getElementById('month-grid'); g.innerHTML='';
+  MONTHS_DATA.forEach(m=>{
+    const cell=document.createElement('div');
+    cell.style.cssText=`border:0.5px solid var(--b1);border-radius:var(--r);padding:10px 8px 8px;cursor:pointer;transition:all .1s;${m.now?'border-color:var(--t1);border-width:1px':''}${m.past?';background:var(--bg2)':''}`;
+    cell.onmouseover=()=>{cell.style.borderColor='var(--b2)';cell.style.background='var(--bg2)'};
+    cell.onmouseout=()=>{cell.style.borderColor=m.now?'var(--t1)':'var(--b1)';if(!m.past)cell.style.background=''};
+    cell.innerHTML=`<div style="font-size:12px;font-weight:500;margin-bottom:6px">${m.name}${m.now?' ·':''}</div><div style="height:3px;border-radius:2px;background:var(--b1);margin-bottom:4px"><div style="height:100%;width:${m.prog}%;background:var(--teal);border-radius:2px"></div></div><div style="font-size:10px;color:var(--t3)">${m.note}</div>`;
+    cell.onclick=()=>document.querySelectorAll('.nav-tab')[1].click();
+    g.appendChild(cell);
+  });
+}
+
+/* ============================================================ MONTH */
+function buildMonthAreas(){
+  const c=document.getElementById('month-areas'); c.innerHTML='';
+  monthGoals.forEach((g,gi)=>{
+    const m=AREA_META[g.area];
+    const done=g.subs.filter(s=>s.done).length, total=g.subs.length;
+    const pct=total>0?Math.round((done/total)*100):0;
+    const subsHTML=g.subs.map((s,si)=>`
+      <div class="mrow">
+        <div class="mchk ${s.done?'on':''}" onclick="toggleMonthSub(${gi},${si},this)"></div>
+        <span class="mtext ${s.done?'done':''}">${s.t}</span>
+        <span class="gtag">${s.tag}</span>
+      </div>`).join('');
+    const yearRef=yearGoals.find(yg=>yg.area===g.area);
+    const div=document.createElement('div'); div.className='acard';
+    div.innerHTML=`
+      <div class="ahead">
+        <div class="adot" style="background:${m.color}"></div>
+        <span class="aname">${g.area}</span>
+        <span class="abadge" style="background:${m.bg};color:${m.text}" id="mbadge-${gi}">${done}/${total} done</span>
+      </div>
+      ${yearRef?`<div class="yearly-ref"><i class="ti ti-link" style="font-size:12px;color:var(--t3)"></i><span style="color:var(--t3)">Yearly:</span><span style="color:var(--t2)">${yearRef.goal}</span></div>`:''}
+      <textarea class="goal-input" rows="1" oninput="autoResize(this)" placeholder="What specifically are you working on this month?">${g.monthlyGoal}</textarea>
+      <div class="pbar" onclick="clickMBar(event,${gi},this)"><div class="pfill" id="mbar-${gi}" style="width:${pct}%;background:${m.color}"></div></div>
+      <div class="plabel"><span>${done} of ${total} subtasks</span><span id="mpct-${gi}">${pct}%</span></div>
+      <div class="miles" id="msubs-${gi}">${subsHTML}
+        <div id="madd-${gi}" style="display:none" class="add-row">
+          <input type="text" id="min-${gi}" placeholder="Add subtask…" onkeydown="if(event.key==='Enter')addMonthSub(${gi})"/>
+          <select id="mtag-${gi}" style="max-width:120px"><option value="monthly">monthly</option><option value="yearly goal">yearly goal</option></select>
+          <button onclick="addMonthSub(${gi})">Add</button>
+        </div>
+      </div>
+      <button class="ghost-btn" onclick="toggleDiv('madd-${gi}')"><i class="ti ti-plus" style="font-size:12px"></i> Add subtask</button>`;
+    c.appendChild(div);
+  });
+  recalcMonthStats();
+}
+
+function saveMonthlyGoal(){
+  const area=document.getElementById('mgm-area').value;
+  const text=document.getElementById('mgm-text').value.trim();
+  const subsRaw=document.getElementById('mgm-subs').value.trim();
+  const tag=document.getElementById('mgm-tag').value;
+  if(!text){alert('Please enter a goal');return;}
+  const subs=subsRaw?subsRaw.split('\n').filter(Boolean).map(t=>({t,done:false,tag})):[];
+  const existing=monthGoals.findIndex(g=>g.area===area);
+  if(existing>=0){monthGoals[existing].monthlyGoal=text;monthGoals[existing].subs.push(...subs);}
+  else monthGoals.push({area,monthlyGoal:text,subs});
+  document.getElementById('mgm-text').value='';
+  document.getElementById('mgm-subs').value='';
+  closeModal('mgoal-modal');
+  buildMonthAreas();
+}
+
+function toggleMonthSub(gi,si,el){
+  monthGoals[gi].subs[si].done=!monthGoals[gi].subs[si].done;
+  el.classList.toggle('on'); el.nextElementSibling.classList.toggle('done');
+  updateMBar(gi); recalcMonthStats();
+}
+
+function updateMBar(gi){
+  const g=monthGoals[gi]; const done=g.subs.filter(s=>s.done).length, total=g.subs.length;
+  const pct=total>0?Math.round((done/total)*100):0;
+  document.getElementById('mbar-'+gi).style.width=pct+'%';
+  document.getElementById('mpct-'+gi).textContent=pct+'%';
+  document.getElementById('mbadge-'+gi).textContent=done+'/'+total+' done';
+}
+
+function clickMBar(e,gi,el){
+  const pct=Math.round(((e.clientX-el.getBoundingClientRect().left)/el.offsetWidth)*100);
+  document.getElementById('mbar-'+gi).style.width=pct+'%';
+  document.getElementById('mpct-'+gi).textContent=pct+'%';
+}
+
+function addMonthSub(gi){
+  const inp=document.getElementById('min-'+gi); const tag=document.getElementById('mtag-'+gi).value;
+  const val=inp.value.trim(); if(!val)return;
+  const si=monthGoals[gi].subs.length;
+  monthGoals[gi].subs.push({t:val,done:false,tag});
+  const c=document.getElementById('msubs-'+gi);
+  const row=document.createElement('div'); row.className='mrow';
+  row.innerHTML=`<div class="mchk" onclick="toggleMonthSub(${gi},${si},this)"></div><span class="mtext">${val}</span><span class="gtag">${tag}</span>`;
+  c.insertBefore(row,document.getElementById('madd-'+gi));
+  inp.value=''; updateMBar(gi);
+}
+
+function recalcMonthStats(){
+  const done=monthGoals.reduce((a,g)=>a+g.subs.filter(s=>s.done).length,0);
+  document.getElementById('ms-tasks').textContent=done;
+  document.getElementById('ms-goals').textContent=monthGoals.length;
+}
+
+/* AUTO KEY DATES */
+function buildMonthDates(){
+  const list=document.getElementById('month-dates'); list.innerHTML='';
+  const sprintDates=[
+    {date:'Jul 7', event:'Sprint 1 mid-sprint check-in', auto:true},
+    {date:'Jul 14', event:'Sprint 1 retro', auto:true},
+    {date:'Jul 21', event:'Sprint 2 mid-sprint check-in', auto:true},
+    {date:'Jul 28', event:'Sprint 2 retro', auto:true},
+  ];
+  sprintDates.forEach(d=>{
+    const row=document.createElement('div'); row.className='drow';
+    row.innerHTML=`<span class="dpill auto">${d.date}</span><span class="devent">${d.event}</span><span class="dtag">auto</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById('ms-dates').textContent=sprintDates.length;
+}
+
+function addMonthDate(){
+  const date=document.getElementById('md-date').value;
+  const evt=document.getElementById('md-event').value.trim();
+  const tag=document.getElementById('md-tag').value.trim()||'Other';
+  if(!date||!evt)return;
+  const fmt=formatDate(new Date(date+'T00:00:00'));
+  const list=document.getElementById('month-dates');
+  const row=document.createElement('div'); row.className='drow';
+  row.innerHTML=`<span class="dpill">${fmt}</span><span class="devent">${evt}</span><span class="dtag">${tag}</span>`;
+  list.appendChild(row);
+  document.getElementById('md-date').value='';
+  document.getElementById('md-event').value='';
+  document.getElementById('md-tag').value='';
+  document.getElementById('ms-dates').textContent=list.children.length;
+}
+
+/* ============================================================ SPRINT */
+function buildSprintDates(){
+  const list=document.getElementById('sprint-dates'); list.innerHTML='';
+  const mid=new Date(SPRINT_START); mid.setDate(mid.getDate()+6);
+  const autoDates=[
+    {d:mid, evt:'Mid-sprint check-in', auto:true},
+    {d:SPRINT_END, evt:'Sprint retro', auto:true},
+  ];
+  autoDates.forEach(({d,evt,auto})=>{
+    const row=document.createElement('div'); row.className='drow';
+    row.innerHTML=`<span class="dpill ${auto?'auto':''}">${formatDate(d)}</span><span class="devent">${evt}</span><span class="dtag">${auto?'auto':''}</span>`;
+    list.appendChild(row);
+  });
+}
+
+function addSprintDate(){
+  const date=document.getElementById('sd-date').value;
+  const evt=document.getElementById('sd-event').value.trim();
+  if(!date||!evt)return;
+  const fmt=formatDate(new Date(date+'T00:00:00'));
+  const list=document.getElementById('sprint-dates');
+  const row=document.createElement('div'); row.className='drow';
+  row.innerHTML=`<span class="dpill">${fmt}</span><span class="devent">${evt}</span><span class="dtag"></span>`;
+  list.appendChild(row);
+  document.getElementById('sd-date').value='';
+  document.getElementById('sd-event').value='';
+}
+
+/* ============================================================ GYM */
+const DAYS=['M','T','W','T','F','S','S'];
+let gymState={w1:Array(7).fill(''),w2:Array(7).fill('')};
+const defaultGym={w1:['lift','','lift','','lift','','rest'],w2:['lift','','lift','run','','rest','rest']};
+
+function buildGym(){
+  ['w1','w2'].forEach(wk=>{
+    const g=document.getElementById('gym-'+wk); g.innerHTML='';
+    DAYS.forEach((d,i)=>{
+      const state=defaultGym[wk][i]||'';
+      gymState[wk][i]=state;
+      const cell=document.createElement('div'); cell.className='gday';
+      cell.innerHTML=`<div class="gdlabel">${d}</div><div class="gdbox ${state}" onclick="toggleGym('${wk}',${i},this)">${state==='lift'?'L':state==='run'?'R':''}</div>`;
+      g.appendChild(cell);
+    });
+  });
+}
+
+function toggleGym(wk,i,el){
+  const states=['','lift','run','rest'];
+  const cur=gymState[wk][i];
+  const next=states[(states.indexOf(cur)+1)%states.length];
+  gymState[wk][i]=next;
+  el.className='gdbox '+(next||'');
+  el.textContent=next==='lift'?'L':next==='run'?'R':'';
+}
+
+/* ============================================================ TASKS */
+function saveTask(){
+  const text=document.getElementById('tm-text').value.trim();
+  const area=document.getElementById('tm-area').value;
+  const due=document.getElementById('tm-due').value||null;
+  if(!text)return;
+  sprintTasks.push({t:text,area,status:'todo',due});
+  document.getElementById('tm-text').value='';
+  document.getElementById('tm-area').value='';
+  document.getElementById('tm-due').value='';
+  closeModal('task-modal');
+  buildKanban();
+}
+
+function buildPullList(){
+  const list=document.getElementById('pull-list'); list.innerHTML='';
+  const existing=new Set(sprintTasks.map(t=>t.t));
+  let any=false;
+  monthGoals.forEach((g,gi)=>{
+    g.subs.forEach((s,si)=>{
+      if(existing.has(s.t))return;
+      any=true;
+      const m=AREA_META[g.area];
+      const row=document.createElement('div'); row.className='pull-item';
+      row.innerHTML=`<input type="checkbox" class="pull-check" id="pull-${gi}-${si}" data-area="${g.area}" data-text="${s.t}"/><label for="pull-${gi}-${si}" style="flex:1;cursor:pointer">${s.t}</label><span class="abadge" style="background:${m.bg};color:${m.text}">${g.area}</span>`;
+      list.appendChild(row);
+    });
+  });
+  if(!any) list.innerHTML='<p style="font-size:13px;color:var(--t3);padding:8px 0">All monthly subtasks are already in this sprint.</p>';
+}
+
+function confirmPull(){
+  document.querySelectorAll('.pull-check:checked').forEach(cb=>{
+    sprintTasks.push({t:cb.dataset.text,area:cb.dataset.area,status:'todo',due:null});
+  });
+  closeModal('pull-modal');
+  buildKanban();
+}
+
+function buildKanban(){
+  const cols={todo:'kcol-todo',doing:'kcol-doing',done:'kcol-done'};
+  Object.values(cols).forEach(id=>{document.getElementById(id).innerHTML='';});
+  const sorted=[...sprintTasks].sort((a,b)=>{
+    if(a.due&&!b.due)return -1; if(!a.due&&b.due)return 1;
+    if(a.due&&b.due)return new Date(a.due)-new Date(b.due);
+    return 0;
+  });
+  sorted.forEach((task,i)=>{
+    const orig=sprintTasks.indexOf(task);
+    const m=task.area?AREA_META[task.area]:null;
+    const isDone=task.status==='done';
+    const card=document.createElement('div');
+    card.className='kcard'+(isDone?' kdone':'');
+    const today=new Date(); today.setHours(0,0,0,0);
+    const isOverdue=task.due&&new Date(task.due)<today&&!isDone;
+    const dueStr=task.due?`<div class="kcard-due ${isOverdue?'overdue':''}">${isOverdue?'Overdue: ':'Due: '}${formatDate(new Date(task.due+'T00:00:00'))}</div>`:'';
+    const areaTag=m?`<div class="atag"><span class="abadge" style="background:${m.bg};color:${m.text};font-size:10px;padding:1px 6px;border-radius:20px">${task.area}</span></div>`:'';
+    card.innerHTML=`${task.t}${dueStr}${areaTag}`;
+    if(!isDone){
+      const nextStatus=task.status==='todo'?'doing':'done';
+      card.onclick=()=>{sprintTasks[orig].status=nextStatus;buildKanban();};
+    }
+    document.getElementById(cols[task.status]).appendChild(card);
+  });
+  updateKCounts();
+}
+
+function updateKCounts(){
+  ['todo','doing','done'].forEach(s=>{
+    document.getElementById('kc-'+s).textContent=sprintTasks.filter(t=>t.status===s).length;
+  });
+}
+
+/* ============================================================ RETRO */
+function setRating(n){document.querySelectorAll('#rating-row .rdot').forEach((d,i)=>d.classList.toggle('active',i+1===n));}
+function setMini(id,n){document.querySelectorAll('#'+id+' .mdot').forEach((d,i)=>d.classList.toggle('active',i+1===n));}
+
+/* ============================================================ UTILS */
+function formatDate(d){
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[d.getMonth()]+' '+d.getDate();
+}
+function autoResize(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+function toggleDiv(id){const el=document.getElementById(id);el.style.display=el.style.display==='none'?'flex':'none';if(el.style.display==='flex'){const inp=el.querySelector('input');if(inp)inp.focus();}}
+const helpPrompts={
+  year:'Help me define my 2026 yearly theme and set one meaningful goal for each of my 5 life areas: Health, Career, Finance, Personal, and Fitness.',
+  month:'Help me plan my July 2026 month. Walk me through setting my monthly intention, goals for each life area broken down into subtasks, and key dates.',
+  sprint:'Help me plan my next 2-week sprint from Jul 1 to Jul 14. Walk me through setting goals, tasks by life area, appointments, and gym targets.',
+  retro:'Guide me through my sprint retrospective for Sprint 1. Ask me reflective questions about what went well, what to improve, and what to carry forward.'
+};
+function openHelp(p){window.open('https://claude.ai/new?q='+encodeURIComponent(helpPrompts[p]),'_blank');}
+
+/* ============================================================ INIT */
+buildYearAreas();
+buildMonthGrid();
+buildMonthAreas();
+buildMonthDates();
+buildSprintDates();
+buildGym();
+buildKanban();
+</script>
+</body>
+</html>
