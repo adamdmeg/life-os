@@ -92,3 +92,8 @@ change rather than silently editing the old entry.
   "What's done" section above (no rationale there — keep it a strict record), and put the
   *why* / tradeoffs / open questions in `docs/decision-log.md` per the decision-log
   instructions near the top of this file.
+- Keep `README.md` current. With every big feature change, check the README's
+  architecture, "How to use", and roadmap sections against the actual current
+  state and update whatever has drifted (new tables/components, changed flows,
+  shipped vs. planned). The README is the public-facing summary — don't let it
+  fall behind "What's done" above.
