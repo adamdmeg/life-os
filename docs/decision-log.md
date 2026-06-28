@@ -7,15 +7,14 @@ interviews or design conversations later.
 
 **How to read this:** newest entries at the top. Each entry is a short story:
 what I was deciding, what I picked, what I gave up, and anything I'm still unsure
-about. Nothing here needs to be polished — it just needs to be honest and
-specific.
+about. 
 
 ---
 
 ## Entries
 
 ### Sprint page Plan/Board tabs
-**Date:** ~2026-06-24
+**Date:** 2026-06-24
 
 I split the sprint page into two tabs — Plan and Board — instead of stacking
 everything in one long scroll. Plan holds the monthly-goals peek, the intention
@@ -29,16 +28,16 @@ planning conceptually "first."
 
 **Tradeoff:** tabs hide content, so you can't see plan and board at the same time
 anymore. I tried to soften that by picking the default tab based on state — a
-sprint that's already started opens to Board (you're executing), one that hasn't
-started yet opens to Plan (you're still setting up).
+sprint that's already started opens to Board, one that hasn't
+started yet opens to Plan.
 
-**Still unsure:** whether the default-tab logic is intuitive or just surprising.
-Need to live with it.
+**Still unsure:** whether the default-tab logic is intuitive or confusing.
+Need to live with it for now.
 
 ---
 
 ### Sprint notes (migration 005)
-**Date:** ~2026-06-24
+**Date:** 2026-06-24
 
 Added a nullable `sprints.notes` text column behind a free-text Notes card. It
 saves on blur, like the other free-text fields.
@@ -49,19 +48,19 @@ fields that already exist — `goals` (the sprint intention) and `mid_sprint_not
 anything that doesn't fit.
 
 **Tradeoff:** three free-text fields on one entity risks confusion about what
-goes where. I'm betting the labels carry enough meaning to keep them distinct.
+goes where. I feel like the labels carry enough meaning to keep them distinct.
 
 ---
 
 ### Monthly goals peek on the sprint page
-**Date:** ~2026-06-24
+**Date:** 2026-06-24
 
 The sprint page now shows a compact, read-only "This month's goals" card at the
 top of the Plan tab — area chip, goal text, and a done/total count per goal, with
 a "View month" link.
 
 **Why:** I want the month's intent visible while planning a sprint, without
-having to leave the page. The data was basically free — SprintPage already loads
+having to leave the page. The data was already available — SprintPage already loads
 the month's `monthly_goals` for the pull-subtasks modal, so I reused it.
 
 **Tradeoff:** it's read-only and duplicates a slice of the month UI. I chose not
@@ -70,7 +69,7 @@ to make it editable here to avoid two places that edit the same thing.
 ---
 
 ### Gym consistency calculation
-**Date:** ~2026-06-24
+**Date:** 2026-06-23
 
 Added a shared `gymConsistency(sprints, asOf?)` helper in `stats.js` that reads
 each sprint's `gym_plan` and derives average workout days per week. Only 'lift'
@@ -79,22 +78,22 @@ Both the month reflection and the in-progress month page render the same
 section (the average plus a lift/run/total breakdown).
 
 **Why:** the gym plan already records the workout type per day, so consistency is
-derivable with zero new schema. One helper keeps the planning view and the
+derivable with no new schema. One helper keeps the planning view and the
 reflection view consistent with each other.
 
 **Tradeoff / the subtle part:** completed months call it with no `asOf` so every
 planned week counts. The in-progress month passes `today`, so it's a *running*
 average — only fully-ended weeks count, and a still-in-progress week is excluded
-entirely. That's deliberate: otherwise the average would dip mid-week as
+entirely. Otherwise the average would dip mid-week as
 not-yet-done days sit empty and look like missed workouts.
 
 **Still unsure:** hardcoding "2 weeks per sprint" — fine for now, but it's an
-assumption baked into the math.
+assumption.
 
 ---
 
 ### Reflection views for ended periods
-**Date:** ~2026-06-24
+**Date:** 2026-06-23
 
 Once a period is over, the editable planning page is automatically replaced by a
 read-only reflection. App.jsx routes ended months (month number < current month)
@@ -112,7 +111,7 @@ correct default.
 ---
 
 ### Month reflection detail + reserved AI summary slot
-**Date:** ~2026-06-24
+**Date:** 2026-06-22
 
 The month reflection now nests completed goals' (all-done) subtasks under them,
 and each sprint card shows a reflection peek — rating, energy, a mid-sprint
@@ -130,7 +129,7 @@ haven't designed yet.
 ---
 
 ### Sprint goals as a structured layer (migration 002)
-**Date:** ~2026-06-24
+**Date:** 2026-06-22
 
 Introduced structured sprint goals (text + area) scoped to a sprint. Kanban tasks
 get filed under a goal via `tasks.sprint_goal_id`. A goal's progress is *derived*
